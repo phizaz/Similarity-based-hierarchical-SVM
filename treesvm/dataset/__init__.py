@@ -82,13 +82,65 @@ class Dataset:
 
         # calculate the radius (max of the sqrt thing)
         squared_radius = [in_sqrt(point) for point in all_points]
-        for each in squared_radius:
-            assert each >= 0
+        # for each in squared_radius:
+        #     assert each >= 0
         # return the maximum
         return max(squared_radius)
 
-    # squared distance
+    # squared distance maker
     @staticmethod
+    def squared_distance_maker():
+        # caching techniques
+        cache_first_term = {}
+        cache_third_term = {}
+
+        def squared_distance(label_a, class_a, label_b, class_b, kernel):
+            # square distance calculations (without sqrt)
+            # first term
+            def first_term():
+                if label_a in cache_first_term:
+                    return cache_first_term[label_a]
+
+                summation = 0
+                # normally is the faster form of full nested for loops
+                for i, xx in enumerate(class_a):
+                    summation += kernel(xx, xx)
+                    for yy in class_a[i + 1:]:
+                        summation += 2 * kernel(xx, yy)
+
+                result = 1. / class_a.shape[0] ** 2 * summation
+                cache_first_term[label_a] = result
+                return result
+
+            # second term
+            def second_term():
+                summation = 0
+                # this loop cannot be optimized by the factor of two
+                for xx in class_a:
+                    for yy in class_b:
+                        summation += kernel(xx, yy)
+                return -2. / (class_a.shape[0] * class_b.shape[0]) * summation
+
+            # third term
+            def third_term():
+                if label_b in cache_third_term:
+                    return cache_third_term[label_b]
+
+                summation = 0
+                for i, xx in enumerate(class_b):
+                    summation += kernel(xx, xx)
+                    for yy in class_b[i + 1:]:
+                        summation += 2 * kernel(xx, yy)
+                result = 1. / class_b.shape[0] ** 2 * summation
+                cache_third_term[label_b] = result
+                return result
+
+            distance = first_term() + second_term() + third_term()
+            # assert distance > 0
+            return distance
+
+        return squared_distance
+
     def squared_distance(class_a, class_b, kernel):
         # square distance calculations (without sqrt)
         # first term
@@ -99,7 +151,9 @@ class Dataset:
                 summation += kernel(xx, xx)
                 for yy in class_a[i + 1:]:
                     summation += 2 * kernel(xx, yy)
-            return 1. / class_a.shape[0] ** 2 * summation
+
+            result = 1. / class_a.shape[0] ** 2 * summation
+            return result
 
         # second term
         def second_term():
@@ -117,8 +171,9 @@ class Dataset:
                 summation += kernel(xx, xx)
                 for yy in class_b[i + 1:]:
                     summation += 2 * kernel(xx, yy)
-            return 1. / class_b.shape[0] ** 2 * summation
+            result = 1. / class_b.shape[0] ** 2 * summation
+            return result
 
-        squared_distance = first_term() + second_term() + third_term()
-        assert squared_distance > 0
-        return squared_distance
+        distance = first_term() + second_term() + third_term()
+        # assert distance > 0
+        return distance

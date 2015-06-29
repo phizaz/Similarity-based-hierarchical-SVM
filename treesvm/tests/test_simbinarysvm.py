@@ -1,36 +1,14 @@
 from unittest import TestCase
+import random
 from treesvm import SimBinarySVM
 from treesvm.dataset import Dataset
 import pytest
 
-# this might be wrong, because of the very high cross-validation error
-# def rbf(a, b):
-#     # it turned out to be that a, b are equal !
-#     gamma = 0.1
-#     # if input is single vector, expand it to 2 dimensions
-#     if len(a.shape) == 1:
-#         a = np.array([a])
-#     if len(b.shape) == 1:
-#         b = np.array([b])
-#
-#     print('a:', a.shape)
-#     print('b:', b.shape)
-#
-#
-#     # assert np.array_equal(a, b)
-#
-#     b = np.repeat(np.expand_dims(b, axis=1), a.shape[0], axis=1)
-#     diff = a - b
-#     c = np.exp( gamma * np.linalg.norm(diff, axis=2) ).T
-#
-#     print('c:', c.shape)
-#     return c
-
 class TestSimBinarySVM(TestCase):
-    trainingFile = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/iris.csv'
-    trainingSet = Dataset.load(trainingFile)
-    trainingClasses = Dataset.split(trainingSet)
-    classCnt = len(trainingClasses.keys())
+    training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-s.csv'
+    training_set = Dataset.load(training_file)
+    training_classes = Dataset.split(training_set)
+    class_cnt = len(training_classes.keys())
     gamma = 0.1
     svm = SimBinarySVM(gamma=gamma)
 
@@ -39,16 +17,13 @@ class TestSimBinarySVM(TestCase):
 
     def test__FindSimilarity(self):
         # svm = SimBinarySVM(Kernel)
-        (self.svm.similarity, self.svm.labelToInt, self.svm.intToLabel) = self.svm._find_similarity(self.trainingClasses)
+        (self.svm.similarity, self.svm.labelToInt, self.svm.intToLabel) = self.svm._find_similarity(self.training_classes)
         # print('similarity', similarity)
-        assert self.svm.similarity.size == self.classCnt * self.classCnt
-        assert self.svm.similarity[0].size == self.classCnt
+        assert self.svm.similarity.size == self.class_cnt * self.class_cnt
+        assert self.svm.similarity[0].size == self.class_cnt
 
         # print('labelToINt:', labelToInt)
-        assert len(self.svm.labelToInt.keys()) == 3
-        assert 'Iris-setosa' in self.svm.labelToInt.keys()
-        assert 'Iris-virginica' in self.svm.labelToInt.keys()
-        assert 'Iris-versicolor' in self.svm.labelToInt.keys()
+        assert len(self.svm.labelToInt.keys()) == 6
 
         # print('intToLabel', intToLabel)
         for idx, val in enumerate(self.svm.intToLabel):
@@ -56,9 +31,9 @@ class TestSimBinarySVM(TestCase):
 
     @pytest.mark.run(after='test__FindSimilarity')
     def test__ConstructMSTGraph(self):
-        (self.svm.mst_graph, self.svm.mst_list) = self.svm._construct_mst_graph(self.trainingClasses, self.svm.similarity)
-        assert len(self.svm.mst_list) == self.classCnt - 1
-        assert len(self.svm.mst_graph.connected_with(0)) == self.classCnt
+        (self.svm.mst_graph, self.svm.mst_list) = self.svm._construct_mst_graph(self.training_classes, self.svm.similarity)
+        assert len(self.svm.mst_list) == self.class_cnt - 1
+        assert len(self.svm.mst_graph.connected_with(0)) == self.class_cnt
 
         cnt = 0
         for i, row in enumerate(self.svm.mst_graph.connection):
@@ -67,7 +42,7 @@ class TestSimBinarySVM(TestCase):
                     cnt += 1
 
         # the graph bidirectional
-        assert cnt == (self.classCnt - 1) * 2
+        assert cnt == (self.class_cnt - 1) * 2
 
     @pytest.mark.run(after='test__ConstructMSTGraph')
     def test__ConstructTree(self):
@@ -88,7 +63,7 @@ class TestSimBinarySVM(TestCase):
 
     @pytest.mark.run(after='test_ConstructTree')
     def test_Train(self):
-        self.svm.train(self.trainingClasses)
+        self.svm.train(self.training_classes)
 
         def runner(current):
             if current.left is None and current.right is None:
@@ -104,7 +79,7 @@ class TestSimBinarySVM(TestCase):
     def test_Predict(self):
         errors = 0
         total = 0
-        for class_name, class_samples in self.trainingClasses.items():
+        for class_name, class_samples in self.training_classes.items():
             for sample in class_samples:
                 total += 1
                 if self.svm.predict(sample) != class_name:
@@ -117,6 +92,26 @@ class TestSimBinarySVM(TestCase):
     @pytest.mark.run(after='test_Predict')
     def test_CrossValidate(self):
         # 10 folds validation
-        res = self.svm.cross_validate(10, self.trainingClasses)
+        res = self.svm.cross_validate(10, self.training_classes)
         # this just to get the idea
         assert res == 0
+
+    @pytest.mark.run(after='test_CrossValidate')
+    def test_make_rbf_kernel(self):
+        gamma = 0.1
+        rbf_kernel = self.svm.make_rbf_kernel(gamma=gamma)
+
+        def original_kernel(a, b):
+            import numpy
+
+            return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+
+        for class_name, samples in self.training_classes.items():
+            a = samples
+            b = a[:]
+            random.shuffle(b)
+
+            for i in range(a.shape[0]):
+                assert rbf_kernel(a[i], b[i]) == original_kernel(a[i], b[i])
+
+            break

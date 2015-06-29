@@ -15,15 +15,27 @@ class SimMultiSVM:
         self.kernel = self.make_rbf_kernel(gamma)
         self.gamma = gamma
         self.C = C
-        return
 
     def make_rbf_kernel(self, gamma):
+        cache = {}
+
         def rbf(a, b):
-            return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+            label_a = hash(tuple(a))
+            label_b = hash(tuple(b))
+            if label_a in cache:
+                cached_label_a = cache[label_a]
+                if label_b in cached_label_a:
+                    return cached_label_a[label_b]
+            else:
+                cached_label_a = cache[label_a] = {}
+            cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+            return res
 
         return rbf
 
     def _find_similarity(self, training_classes):
+        find_squared_distance = Dataset.squared_distance_maker()
+
         sq_radiuses = {}
         for name, points in training_classes.items():
             sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
@@ -31,8 +43,10 @@ class SimMultiSVM:
         def find_similarity(a, b):
             sq_ra = sq_radiuses[a]
             sq_rb = sq_radiuses[b]
-            sq_dist = Dataset.squared_distance(
+            sq_dist = find_squared_distance(
+                a,
                 training_classes[a],
+                b,
                 training_classes[b],
                 self.kernel,
             )
@@ -110,7 +124,6 @@ class SimMultiSVM:
                     groups = btree.leaves()
                     for group in groups:
                         new_node = MultiTreeNode(group)
-                        assert isinstance(group, list)
                         # add new group to the leat of the multi tree
                         tree.add_child(current, new_node)
                         # recursively run it
@@ -187,6 +200,19 @@ class SimMultiSVM:
 
         return self.int_to_label[runner(self.tree.root)]
 
+    def test(self, testing_classes):
+        total = 0
+        errors = 0
+
+        for class_name, tests in testing_classes.items():
+            for test in tests:
+                total += 1
+                prediction = self.predict(test)
+                if prediction != class_name:
+                    errors += 1
+
+        return total, errors
+
     def cross_validate(self, folds, training_classes):
         acc_total = 0
         acc_errors = 0
@@ -220,12 +246,9 @@ class SimMultiSVM:
             self.train(training)
 
             # test with the leftover
-            for name, class_tests in testing.items():
-                for test in class_tests:
-                    prediction = self.predict(test)
-                    acc_total += 1
-                    if prediction != name:
-                        acc_errors += 1
+            test_result = self.test(testing)
+            acc_total += test_result[0]
+            acc_errors += test_result[1]
 
         # average the error
         cross_validation_error = acc_errors / acc_total

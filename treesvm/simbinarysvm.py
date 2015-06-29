@@ -1,4 +1,4 @@
-import numpy as np
+import numpy
 import time
 from sklearn import svm as sklearnSVM
 from .dataset import Dataset
@@ -15,44 +15,59 @@ class SimBinarySVM:
         self.C = C
 
     def make_rbf_kernel(self, gamma):
+        cache = {}
+
         def rbf(a, b):
-            return np.exp(-gamma * np.linalg.norm(a - b) ** 2)
+            label_a = hash(tuple(a))
+            label_b = hash(tuple(b))
+            if label_a in cache:
+                cached_label_a = cache[label_a]
+                if label_b in cached_label_a:
+                    return cached_label_a[label_b]
+            else:
+                cached_label_a = cache[label_a] = {}
+            cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+            return res
+
         return rbf
 
-    def _find_similarity(self, trainingClasses):
+    def _find_similarity(self, training_classes):
+        find_squared_distance = Dataset.squared_distance_maker()
         # calculate all the sqRadiuses
-        sqRadiuses = {}
-        for name, points in trainingClasses.items():
+        sq_radiuses = {}
+        for name, points in training_classes.items():
             startTime = time.time()
-            sqRadiuses[name] = Dataset.squared_radius(points, self.kernel)
+            sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
             elapsedTime = time.time() - startTime
 
         # similarity section
         # use the precalculated squared radiuses from above
         def pair_similarity(nameA, nameB):
-            sqRA = sqRadiuses[nameA]
-            sqRB = sqRadiuses[nameB]
-            sqDist = Dataset.squared_distance(
-                trainingClasses[nameA],
-                trainingClasses[nameB],
+            sqRA = sq_radiuses[nameA]
+            sqRB = sq_radiuses[nameB]
+            sqDist = find_squared_distance(
+                nameA,
+                training_classes[nameA],
+                nameB,
+                training_classes[nameB],
                 self.kernel, )
 
             return (sqRA + sqRB) / sqDist
 
         # create mapping function from labels to integers and vice versa
-        classCnt = len( trainingClasses.keys() )
+        classCnt = len( training_classes.keys() )
         labelToInt = {}
         intToLabel = [ None for i in range(classCnt) ]
-        for i, label in enumerate(trainingClasses.keys()):
+        for i, label in enumerate(training_classes.keys()):
             labelToInt[label] = i
             intToLabel[i] = label
 
         # 2d matrix showing similarity of each
-        similarity = np.zeros(( classCnt, classCnt ))
-        for i, classA in enumerate(trainingClasses.keys()):
+        similarity = numpy.zeros(( classCnt, classCnt ))
+        for i, classA in enumerate(training_classes.keys()):
             # convert to int
             a = labelToInt[classA]
-            for classB in list( trainingClasses.keys() )[i+1:]:
+            for classB in list( training_classes.keys() )[i+1:]:
                 # convert to int
                 b = labelToInt[classB]
 
@@ -60,9 +75,9 @@ class SimBinarySVM:
                 # print( 'similarity of %s and %s : %f' % ( classA, classB, similarity[a][b] ) )
         return similarity, labelToInt, intToLabel
 
-    def _construct_mst_graph(self, trainingClasses, similarity):
+    def _construct_mst_graph(self, training_classes, similarity):
         # construct a graph, and find its MST
-        classCnt = len( trainingClasses.keys() )
+        classCnt = len( training_classes.keys() )
         mesh = graph.Graph(classCnt)
         for i, row in enumerate(similarity):
             for j, col in enumerate(row):
@@ -101,23 +116,23 @@ class SimBinarySVM:
             tree.add_right(parent, right)
         return tree
 
-    def train(self, trainingClasses):
+    def train(self, training_classes):
 
         (self.similarity, self.labelToInt, self.intToLabel) = \
-        (similarity, labelToInt, intToLabel) = self._find_similarity(trainingClasses)
+        (similarity, labelToInt, intToLabel) = self._find_similarity(training_classes)
 
-        self.classCnt = classCnt = len( trainingClasses.keys() )
+        self.classCnt = classCnt = len( training_classes.keys() )
 
-        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._construct_mst_graph(trainingClasses, similarity)
+        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._construct_mst_graph(training_classes, similarity)
 
         # recursively disconnect the largest distance link of the MST
         self.tree = tree = self._construct_tree(mst_graph, mst_list)
 
         # create SVMs according to this tree
         # train svm ..
-        def train(trainingClasses):
+        def train(training_classes):
             # svm must be recursively trained
-            def runner(current, trainingUniverse):
+            def runner(current, universe):
                 # if the current has no children, cannot separate anymore
                 if current.left == None and current.right == None:
                     return
@@ -125,7 +140,7 @@ class SimBinarySVM:
                 # details of training is here
                 left_class = {}
                 right_class = {}
-                for class_name, class_samples in trainingUniverse.items():
+                for class_name, class_samples in universe.items():
                     # just put in this var that's all
                     dropbox = None
                     # decide if this label is left hand side or right ?
@@ -152,8 +167,8 @@ class SimBinarySVM:
                     training += samples
                     label += [ 1 for i in range( len(samples) ) ]
 
-                training = np.array(training)
-                label = np.array(label)
+                training = numpy.array(training)
+                label = numpy.array(label)
 
                 svm = sklearnSVM.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
                 # we will use the 'svm' attribute of each node (arbitrarily added)
@@ -164,12 +179,12 @@ class SimBinarySVM:
 
             # start training from the tree's root
             universe = {}
-            for key, val in trainingClasses.items():
+            for key, val in training_classes.items():
                 universe[ self.labelToInt[key] ] = val
             runner( tree.root, universe )
 
         # the result is stored in the tree , self.tree
-        train( trainingClasses )
+        train( training_classes )
         return self.tree
 
     def predict(self, sample):
@@ -189,9 +204,22 @@ class SimBinarySVM:
 
         return self.intToLabel[ runner(self.tree.root) ]
 
-    def cross_validate(self, folds, trainingClasses):
+    def test(self, testing_classes):
         total = 0
-        for key, val in trainingClasses.items():
+        errors = 0
+
+        for class_name, tests in testing_classes.items():
+            for test in tests:
+                total += 1
+                prediction = self.predict(test)
+                if prediction != class_name:
+                    errors += 1
+
+        return total, errors
+
+    def cross_validate(self, folds, training_classes):
+        total = 0
+        for key, val in training_classes.items():
             total += val.size
 
         random_list = [ i % folds for i in range(total) ]
@@ -206,7 +234,7 @@ class SimBinarySVM:
             no = 0
             training_cnt = 0
             testing_cnt = 0
-            for class_name, class_samples in trainingClasses.items():
+            for class_name, class_samples in training_classes.items():
                 training[class_name] = []
                 testing[class_name] = []
                 for sample in class_samples:
@@ -219,8 +247,8 @@ class SimBinarySVM:
                         testing[class_name].append(sample)
                         testing_cnt += 1
                     no += 1
-                training[class_name] = np.array(training[class_name])
-                testing[class_name] = np.array(testing[class_name])
+                training[class_name] = numpy.array(training[class_name])
+                testing[class_name] = numpy.array(testing[class_name])
 
                 # print('training: ', 'name: ', class_name, 'size: ', training[class_name].size)
                 # print('testing: ', 'name: ', class_name, 'size: ', testing[class_name].size)
@@ -229,12 +257,9 @@ class SimBinarySVM:
             self.train(training)
 
             # test with the leftover
-            for class_name, class_tests in testing.items():
-                for test in class_tests:
-                    prediction = self.predict(test)
-                    acc_total += 1
-                    if prediction != class_name:
-                        acc_errors += 1
+            test_result = self.test(testing)
+            acc_total += test_result[0]
+            acc_errors += test_result[1]
 
         # average the error
         cross_validation_error = acc_errors / acc_total

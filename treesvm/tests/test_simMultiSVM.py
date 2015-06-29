@@ -1,4 +1,5 @@
 from unittest import TestCase
+import random
 from treesvm.simmultisvm import SimMultiSVM
 from treesvm.dataset import Dataset
 import pytest
@@ -7,7 +8,7 @@ __author__ = 'phizaz'
 
 
 class TestSimMultiSVM(TestCase):
-    training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/iris.csv'
+    training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-s.csv'
     training_set = Dataset.load(training_file)
     training_classes = Dataset.split(training_set)
     class_cnt = len(training_classes.keys())
@@ -23,10 +24,7 @@ class TestSimMultiSVM(TestCase):
         assert self.svm.similarity[0].size == self.class_cnt
 
         # print('labelToINt:', labelToInt)
-        assert len(self.svm.label_to_int.keys()) == 3
-        assert 'Iris-setosa' in self.svm.label_to_int.keys()
-        assert 'Iris-virginica' in self.svm.label_to_int.keys()
-        assert 'Iris-versicolor' in self.svm.label_to_int.keys()
+        assert len(self.svm.label_to_int.keys()) == 6
 
         # print('int_to_label', int_to_label)
         for idx, val in enumerate(self.svm.int_to_label):
@@ -66,3 +64,23 @@ class TestSimMultiSVM(TestCase):
         res = self.svm.cross_validate(10, self.training_classes)
         # this just to get the idea
         assert res == 0
+
+    @pytest.mark.run(after='test_cross_validate')
+    def test_make_rbf_kernel(self):
+        gamma = 0.1
+        rbf_kernel = self.svm.make_rbf_kernel(gamma=gamma)
+
+        def original_kernel(a, b):
+            import numpy
+
+            return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+
+        for class_name, samples in self.training_classes.items():
+            a = samples
+            b = a[:]
+            random.shuffle(b)
+
+            for i in range(a.shape[0]):
+                assert rbf_kernel(a[i], b[i]) == original_kernel(a[i], b[i])
+
+            break
