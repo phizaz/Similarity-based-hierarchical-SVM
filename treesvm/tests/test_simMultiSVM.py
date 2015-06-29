@@ -1,4 +1,5 @@
 from unittest import TestCase
+import numpy
 import random
 from treesvm.simmultisvm import SimMultiSVM
 from treesvm.dataset import Dataset
@@ -65,7 +66,6 @@ class TestSimMultiSVM(TestCase):
         # this just to get the idea
         assert res == 0
 
-    @pytest.mark.run(after='test_cross_validate')
     def test_make_rbf_kernel(self):
         gamma = 0.1
         rbf_kernel = self.svm.make_rbf_kernel(gamma=gamma)
@@ -75,12 +75,16 @@ class TestSimMultiSVM(TestCase):
 
             return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
 
+        cnt = 0
         for class_name, samples in self.training_classes.items():
             a = samples
-            b = a[:]
+            b = a[:].tolist()
             random.shuffle(b)
+            b = numpy.array(b)
 
             for i in range(a.shape[0]):
+                cnt += 1
                 assert rbf_kernel(a[i], b[i]) == original_kernel(a[i], b[i])
 
-            break
+        assert cnt == 0
+

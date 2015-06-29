@@ -18,8 +18,8 @@ class SimBinarySVM:
         cache = {}
 
         def rbf(a, b):
-            label_a = hash(tuple(a))
-            label_b = hash(tuple(b))
+            label_a = hash(a.tostring())
+            label_b = hash(b.tostring())
             if label_a in cache:
                 cached_label_a = cache[label_a]
                 if label_b in cached_label_a:
