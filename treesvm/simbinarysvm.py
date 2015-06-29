@@ -1,40 +1,38 @@
 import numpy as np
-import random
-import simbinarysvm.dataset as dataset
-import simbinarysvm.graph as graph
-import simbinarysvm.binarytree as binarytree
-import math
 import time
 from sklearn import svm as sklearnSVM
+from .dataset import Dataset
+from . import graph
+from . import binarytree
 
 class SimBinarySVM:
 
     def __init__(self, gamma=0.1, C=1.0):
         # kernel should have its own gamma
         # but, since we're using the traditional scikit 'rbf' version as well, we need another gamma for it as well
-        self.kernel = self.MakeRBFKernel(gamma)
+        self.kernel = self.make_rbf_kernel(gamma)
         self.gamma = gamma
         self.C = C
 
-    def MakeRBFKernel(self, gamma):
+    def make_rbf_kernel(self, gamma):
         def rbf(a, b):
-            return np.exp( gamma * np.linalg.norm(a - b) ** 2)
+            return np.exp(-gamma * np.linalg.norm(a - b) ** 2)
         return rbf
 
-    def _FindSimilarity(self, trainingClasses):
+    def _find_similarity(self, trainingClasses):
         # calculate all the sqRadiuses
         sqRadiuses = {}
         for name, points in trainingClasses.items():
             startTime = time.time()
-            sqRadiuses[name] = dataset.SquaredRadius(points, self.kernel)
+            sqRadiuses[name] = Dataset.squared_radius(points, self.kernel)
             elapsedTime = time.time() - startTime
 
         # similarity section
         # use the precalculated squared radiuses from above
-        def Similarity(nameA, nameB):
+        def pair_similarity(nameA, nameB):
             sqRA = sqRadiuses[nameA]
             sqRB = sqRadiuses[nameB]
-            sqDist = dataset.SquaredDistance(
+            sqDist = Dataset.squared_distance(
                 trainingClasses[nameA],
                 trainingClasses[nameB],
                 self.kernel, )
@@ -58,62 +56,62 @@ class SimBinarySVM:
                 # convert to int
                 b = labelToInt[classB]
 
-                similarity[a][b] = similarity[b][a] = Similarity(classA, classB)
+                similarity[a][b] = similarity[b][a] = pair_similarity(classA, classB)
                 # print( 'similarity of %s and %s : %f' % ( classA, classB, similarity[a][b] ) )
-        return (similarity, labelToInt, intToLabel)
+        return similarity, labelToInt, intToLabel
 
-    def _ConstructMSTGraph(self, trainingClasses, similarity):
+    def _construct_mst_graph(self, trainingClasses, similarity):
         # construct a graph, and find its MST
         classCnt = len( trainingClasses.keys() )
         mesh = graph.Graph(classCnt)
         for i, row in enumerate(similarity):
             for j, col in enumerate(row):
-                mesh.Link(i, j, col)
+                mesh.link(i, j, col)
         # find its MST
-        mst_list = mesh.MST()
+        mst_list = mesh.mst()
         mst_list.sort(key=lambda x: -x[2])
         # print(mst_list)
 
         # creat a graph of MST
         mst_graph = graph.Graph(classCnt)
         for link in mst_list:
-            mst_graph.DoubleLink(link[0], link[1], link[2])
+            mst_graph.double_link(link[0], link[1], link[2])
         return (mst_graph, mst_list)
 
-    def _ConstructTree(self, mst_graph, mst_list):
+    def _construct_tree(self, mst_graph, mst_list):
         tree = binarytree.BinaryTree()
         # the root of the tree is a list of every node
-        tree.AddRoot( binarytree.Node( mst_graph.ConnectedWith(0) ) )
+        tree.add_root( binarytree.BinaryTreeNode( mst_graph.connected_with(0) ) )
         left = tree.root
         right = None
         for link in mst_list:
             # remove this link
-            mst_graph.Unlink(link[0], link[1])
-            mst_graph.Unlink(link[1], link[0])
+            mst_graph.unlink(link[0], link[1])
+            mst_graph.unlink(link[1], link[0])
             parent = None
             # find where the link in the binary tree
-            if link[0] in left.value:
+            if link[0] in left.val:
                 parent = left
             else:
                 parent = right
             # explode this binarytree node into two
-            left = binarytree.Node( mst_graph.ConnectedWith(link[0]) )
-            right = binarytree.Node( mst_graph.ConnectedWith(link[1]) )
-            tree.AddLeft(parent, left)
-            tree.AddRight(parent, right)
+            left = binarytree.BinaryTreeNode( mst_graph.connected_with(link[0]) )
+            right = binarytree.BinaryTreeNode( mst_graph.connected_with(link[1]) )
+            tree.add_left(parent, left)
+            tree.add_right(parent, right)
         return tree
 
-    def Train(self, trainingClasses):
+    def train(self, trainingClasses):
 
         (self.similarity, self.labelToInt, self.intToLabel) = \
-        (similarity, labelToInt, intToLabel) = self._FindSimilarity(trainingClasses)
+        (similarity, labelToInt, intToLabel) = self._find_similarity(trainingClasses)
 
         self.classCnt = classCnt = len( trainingClasses.keys() )
 
-        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._ConstructMSTGraph(trainingClasses, similarity)
+        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._construct_mst_graph(trainingClasses, similarity)
 
         # recursively disconnect the largest distance link of the MST
-        self.tree = tree = self._ConstructTree(mst_graph, mst_list)
+        self.tree = tree = self._construct_tree(mst_graph, mst_list)
 
         # create SVMs according to this tree
         # train svm ..
@@ -125,14 +123,13 @@ class SimBinarySVM:
                     return
 
                 # details of training is here
-
                 left_class = {}
                 right_class = {}
                 for class_name, class_samples in trainingUniverse.items():
                     # just put in this var that's all
                     dropbox = None
                     # decide if this label is left hand side or right ?
-                    if class_name in current.left.value:
+                    if class_name in current.left.val:
                         # it belongs to the left group
                         dropbox = left_class
                     else:
@@ -166,21 +163,20 @@ class SimBinarySVM:
                 runner(current.right, right_class)
 
             # start training from the tree's root
-            runner( tree.root, trainingClasses )
+            universe = {}
+            for key, val in trainingClasses.items():
+                universe[ self.labelToInt[key] ] = val
+            runner( tree.root, universe )
 
         # the result is stored in the tree , self.tree
-        universe = {}
-        for key, val in trainingClasses.items():
-            universe[ self.labelToInt[key] ] = val
-
-        train( universe )
+        train( trainingClasses )
         return self.tree
 
-    def Predict(self, sample):
+    def predict(self, sample):
         def runner(current):
             # if it is the leaf of the tree, return its value
             if current.left == None and current.right == None:
-                return current.value[0]
+                return current.val[0]
 
             prediction = current.svm.predict(sample)
 
@@ -193,7 +189,7 @@ class SimBinarySVM:
 
         return self.intToLabel[ runner(self.tree.root) ]
 
-    def CrossValidate(self, folds, trainingClasses):
+    def cross_validate(self, folds, trainingClasses):
         total = 0
         for key, val in trainingClasses.items():
             total += val.size
@@ -230,16 +226,16 @@ class SimBinarySVM:
                 # print('testing: ', 'name: ', class_name, 'size: ', testing[class_name].size)
 
             # train the rest
-            self.Train(training)
+            self.train(training)
 
             # test with the leftover
             for class_name, class_tests in testing.items():
                 for test in class_tests:
-                    prediction = self.Predict(test)
+                    prediction = self.predict(test)
                     acc_total += 1
                     if prediction != class_name:
                         acc_errors += 1
 
         # average the error
-        cverror = acc_errors / acc_total
-        return (cverror, acc_total, acc_errors)
+        cross_validation_error = acc_errors / acc_total
+        return cross_validation_error, acc_total, acc_errors

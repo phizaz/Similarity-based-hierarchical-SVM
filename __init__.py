@@ -1,1 +1,1 @@
-from .simbinarysvm import SimBinarySVM
+from .treesvm import SimBinarySVM

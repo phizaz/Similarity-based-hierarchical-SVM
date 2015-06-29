@@ -4,19 +4,19 @@ class UnionFind:
     def __init__(self, size):
         self._parents = [ i for i in range(0, size) ]
 
-    def Find(self, member):
+    def find(self, member):
         # it is the root
         if self._parents[member] == member:
             return member
         else:
-            self._parents[member] = self.Find(self._parents[member])
+            self._parents[member] = self.find(self._parents[member])
             return self._parents[member]
 
-    def Union(self, a, b):
-        parentA = self.Find(a)
-        parentB = self.Find(b)
-        if parentA == parentB:
+    def union(self, a, b):
+        parent_a = self.find(a)
+        parent_b = self.find(b)
+        if parent_a == parent_b:
             return False
 
-        self._parents[parentA] = self._parents[parentB]
+        self._parents[parent_a] = self._parents[parent_b]
         return True

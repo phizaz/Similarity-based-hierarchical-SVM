@@ -1,11 +1,11 @@
-from .Node import Node
+from .binarytree_node import BinaryTreeNode
+
 
 class BinaryTree:
-
     def __init__(self):
         self.root = None
 
-    def AddRoot(self, node):
+    def add_root(self, node):
         if self.root != None:
             return
 
@@ -15,7 +15,7 @@ class BinaryTree:
         return node
 
     # adding should work correctly only when the newnode has no children
-    def AddLeft(self, parent, newnode):
+    def add_left(self, parent, newnode):
         old = parent.left
         # add link to newnode
         # 0 is don't care
@@ -31,7 +31,7 @@ class BinaryTree:
 
         return newnode
 
-    def AddRight(self, parent, newnode):
+    def add_right(self, parent, newnode):
         old = parent.right
         # add link to newnode
         # 0 is don't care
@@ -47,28 +47,44 @@ class BinaryTree:
 
         return newnode
 
-    def Left(self, node):
+    def left(self, node):
         return node.left
 
-    def Right(self, node):
+    def right(self, node):
         return node.right
 
-    def First(self):
+    def first(self):
         current = self.root
         while current.left != None:
             current = current.left
         return current
 
-    def Display(self):
+    def inorder(self):
+        order = []
+
         def travel(current):
             if current == None:
                 return
-            left = current.left
-            right = current.right
-            travel(left)
-            print(current.value)
-            travel(right)
+            travel(current.left)
+            order.append(current.val)
+            travel(current.right)
+
         travel(self.root)
+        return order
+
+    def leaves(self):
+        leaves = []
+
+        def travel(current):
+            if current.left == None and current.right == None:
+                leaves.append(current.val)
+                return
+
+            travel(current.left)
+            travel(current.right)
+
+        travel(self.root)
+        return leaves
 
     @property
     def root(self):
