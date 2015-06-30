@@ -18,21 +18,21 @@ class TestSimBinarySVM(TestCase):
 
     def test__FindSimilarity(self):
         # svm = SimBinarySVM(Kernel)
-        (self.svm.similarity, self.svm.labelToInt, self.svm.intToLabel) = self.svm._find_similarity(self.training_classes)
+        (self.svm.separability, self.svm.label_to_int, self.svm.int_to_label) = self.svm._find_separability(self.training_classes)
         # print('similarity', similarity)
-        assert self.svm.similarity.size == self.class_cnt * self.class_cnt
-        assert self.svm.similarity[0].size == self.class_cnt
+        assert self.svm.separability.size == self.class_cnt * self.class_cnt
+        assert self.svm.separability[0].size == self.class_cnt
 
         # print('labelToINt:', labelToInt)
-        assert len(self.svm.labelToInt.keys()) == 6
+        assert len(self.svm.label_to_int.keys()) == 6
 
         # print('intToLabel', intToLabel)
-        for idx, val in enumerate(self.svm.intToLabel):
-            assert self.svm.labelToInt[val] == idx
+        for idx, val in enumerate(self.svm.int_to_label):
+            assert self.svm.label_to_int[val] == idx
 
     @pytest.mark.run(after='test__FindSimilarity')
     def test__ConstructMSTGraph(self):
-        (self.svm.mst_graph, self.svm.mst_list) = self.svm._construct_mst_graph(self.training_classes, self.svm.similarity)
+        (self.svm.mst_graph, self.svm.mst_list) = self.svm._construct_mst_graph(self.training_classes, self.svm.separability)
         assert len(self.svm.mst_list) == self.class_cnt - 1
         assert len(self.svm.mst_graph.connected_with(0)) == self.class_cnt
 

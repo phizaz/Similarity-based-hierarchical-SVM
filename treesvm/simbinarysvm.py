@@ -1,12 +1,13 @@
 import numpy
 import time
-from sklearn import svm as sklearnSVM
 from .dataset import Dataset
 from . import graph
 from . import binarytree
+import sklearn.svm
+import time
+
 
 class SimBinarySVM:
-
     def __init__(self, gamma=0.1, C=1.0):
         # kernel should have its own gamma
         # but, since we're using the traditional scikit 'rbf' version as well, we need another gamma for it as well
@@ -33,72 +34,88 @@ class SimBinarySVM:
 
         return rbf
 
-    def _find_similarity(self, training_classes):
+    def _find_separability(self, training_classes):
         find_squared_distance = Dataset.squared_distance_maker()
         # calculate all the sqRadiuses
+        start_time = time.time()
         sq_radiuses = {}
         for name, points in training_classes.items():
             startTime = time.time()
             sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
             elapsedTime = time.time() - startTime
+        print('sq_radiuses: %.4f' % (time.time() - start_time))
 
-        # similarity section
+        # separability section
         # use the precalculated squared radiuses from above
-        def pair_similarity(nameA, nameB):
-            sqRA = sq_radiuses[nameA]
-            sqRB = sq_radiuses[nameB]
-            sqDist = find_squared_distance(
-                nameA,
-                training_classes[nameA],
-                nameB,
-                training_classes[nameB],
+        def pair_separability(name_a, name_b):
+            sq_ra = sq_radiuses[name_a]
+            sq_rb = sq_radiuses[name_b]
+            sq_dist = find_squared_distance(
+                name_a,
+                training_classes[name_a],
+                name_b,
+                training_classes[name_b],
                 self.kernel, )
 
-            return (sqRA + sqRB) / sqDist
+            return sq_dist / (sq_ra + sq_rb)
 
         # create mapping function from labels to integers and vice versa
-        classCnt = len( training_classes.keys() )
-        labelToInt = {}
-        intToLabel = [ None for i in range(classCnt) ]
+        start_time = time.time()
+        class_cnt = len(training_classes.keys())
+        label_to_int = {}
+        int_to_label = [None for i in range(class_cnt)]
         for i, label in enumerate(training_classes.keys()):
-            labelToInt[label] = i
-            intToLabel[i] = label
+            label_to_int[label] = i
+            int_to_label[i] = label
+        print('relabelling: %.4f' % (time.time() - start_time))
 
-        # 2d matrix showing similarity of each
-        similarity = numpy.zeros(( classCnt, classCnt ))
-        for i, classA in enumerate(training_classes.keys()):
+        # 2d matrix showing separability of each
+        start_time = time.time()
+        separability = numpy.empty((class_cnt, class_cnt))
+        separability.fill(float('inf'))
+        for i, class_a in enumerate(training_classes.keys()):
             # convert to int
-            a = labelToInt[classA]
-            for classB in list( training_classes.keys() )[i+1:]:
+            a = label_to_int[class_a]
+            separability[a][a] = 0
+            for class_b in list(training_classes.keys())[i + 1:]:
                 # convert to int
-                b = labelToInt[classB]
+                b = label_to_int[class_b]
+                separability[a][b] = separability[b][a] = pair_separability(class_a, class_b)
 
-                similarity[a][b] = similarity[b][a] = pair_similarity(classA, classB)
-                # print( 'similarity of %s and %s : %f' % ( classA, classB, similarity[a][b] ) )
-        return similarity, labelToInt, intToLabel
+        print('separability: %.4f' % (time.time() - start_time))
+        return separability, label_to_int, int_to_label
 
-    def _construct_mst_graph(self, training_classes, similarity):
+    def _construct_mst_graph(self, training_classes, separability):
         # construct a graph, and find its MST
-        classCnt = len( training_classes.keys() )
-        mesh = graph.Graph(classCnt)
-        for i, row in enumerate(similarity):
-            for j, col in enumerate(row):
-                mesh.link(i, j, col)
+        class_cnt = len(training_classes.keys())
+        start_time = time.time()
+        mesh = graph.Graph(class_cnt)
+        for i, row in enumerate(separability):
+            for j, sep in enumerate(row):
+                mesh.link(i, j, sep)
+        print('create mesh: %.4f' % (time.time() - start_time))
         # find its MST
+        start_time = time.time()
         mst_list = mesh.mst()
+        print('mst_list: %.4f' % (time.time() - start_time))
+        start_time = time.time()
         mst_list.sort(key=lambda x: -x[2])
+        print('sort mst_list: %.4f' % (time.time() - start_time))
         # print(mst_list)
 
         # creat a graph of MST
-        mst_graph = graph.Graph(classCnt)
+        start_time = time.time()
+        mst_graph = graph.Graph(class_cnt)
         for link in mst_list:
             mst_graph.double_link(link[0], link[1], link[2])
-        return (mst_graph, mst_list)
+        print('mst_graph: %.4f' % (time.time() - start_time))
+        return mst_graph, mst_list
 
     def _construct_tree(self, mst_graph, mst_list):
+        start_time = time.time()
         tree = binarytree.BinaryTree()
         # the root of the tree is a list of every node
-        tree.add_root( binarytree.BinaryTreeNode( mst_graph.connected_with(0) ) )
+        tree.add_root(binarytree.BinaryTreeNode(mst_graph.connected_with(0)))
         left = tree.root
         right = None
         for link in mst_list:
@@ -112,20 +129,22 @@ class SimBinarySVM:
             else:
                 parent = right
             # explode this binarytree node into two
-            left = binarytree.BinaryTreeNode( mst_graph.connected_with(link[0]) )
-            right = binarytree.BinaryTreeNode( mst_graph.connected_with(link[1]) )
+            left = binarytree.BinaryTreeNode(mst_graph.connected_with(link[0]))
+            right = binarytree.BinaryTreeNode(mst_graph.connected_with(link[1]))
             tree.add_left(parent, left)
             tree.add_right(parent, right)
+        print('tree: %.4f' % (time.time() - start_time))
         return tree
 
     def train(self, training_classes):
 
-        (self.similarity, self.labelToInt, self.intToLabel) = \
-        (similarity, labelToInt, intToLabel) = self._find_similarity(training_classes)
+        (self.separability, self.label_to_int, self.int_to_label) = \
+            (separability, label_to_int, int_to_label) = self._find_separability(training_classes)
 
-        self.classCnt = classCnt = len( training_classes.keys() )
+        self.class_cnt = class_cnt = len(training_classes.keys())
 
-        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._construct_mst_graph(training_classes, similarity)
+        (self.mst_graph, self.mst_list) = (mst_graph, mst_list) = self._construct_mst_graph(training_classes,
+                                                                                            separability)
 
         # recursively disconnect the largest distance link of the MST
         self.tree = tree = self._construct_tree(mst_graph, mst_list)
@@ -162,17 +181,17 @@ class SimBinarySVM:
                 for class_name, class_samples in left_class.items():
                     samples = class_samples.tolist()
                     training += samples
-                    label += [ 0 for i in range( len(samples) ) ]
+                    label += [0 for i in range(len(samples))]
 
                 for class_name, class_samples in right_class.items():
                     samples = class_samples.tolist()
                     training += samples
-                    label += [ 1 for i in range( len(samples) ) ]
+                    label += [1 for i in range(len(samples))]
 
                 training = numpy.array(training)
                 label = numpy.array(label)
 
-                svm = sklearnSVM.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
+                svm = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
                 # we will use the 'svm' attribute of each node (arbitrarily added)
                 current.svm = svm
 
@@ -182,11 +201,13 @@ class SimBinarySVM:
             # start training from the tree's root
             universe = {}
             for key, val in training_classes.items():
-                universe[ self.labelToInt[key] ] = val
-            runner( tree.root, universe )
+                universe[self.label_to_int[key]] = val
+            runner(tree.root, universe)
 
         # the result is stored in the tree , self.tree
-        train( training_classes )
+        start_time = time.time()
+        train(training_classes)
+        print('train: %.4f' % (time.time() - start_time))
         return self.tree
 
     def predict(self, sample):
@@ -197,14 +218,14 @@ class SimBinarySVM:
 
             prediction = current.svm.predict(sample)
 
-            if prediction == 0:
+            if prediction[0] == 0:
                 # goes left
                 return runner(current.left)
             else:
                 # goes right
                 return runner(current.right)
 
-        return self.intToLabel[ runner(self.tree.root) ]
+        return self.int_to_label[runner(self.tree.root)]
 
     def test(self, testing_classes):
         total = 0
@@ -214,7 +235,7 @@ class SimBinarySVM:
             for test in tests:
                 total += 1
                 prediction = self.predict(test)
-                if prediction != class_name:
+                if prediction[0] != class_name:
                     errors += 1
 
         return total, errors
@@ -224,7 +245,7 @@ class SimBinarySVM:
         for key, val in training_classes.items():
             total += val.size
 
-        random_list = [ i % folds for i in range(total) ]
+        random_list = [i % folds for i in range(total)]
         # should  we shuffle it ?
         # random.shuffle( ramdom_list )
         acc_total = 0

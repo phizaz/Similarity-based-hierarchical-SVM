@@ -34,14 +34,14 @@ class SimMultiSVM:
 
         return rbf
 
-    def _find_similarity(self, training_classes):
+    def _find_separability(self, training_classes):
         find_squared_distance = Dataset.squared_distance_maker()
 
         sq_radiuses = {}
         for name, points in training_classes.items():
             sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
 
-        def find_similarity(a, b):
+        def find_separability(a, b):
             sq_ra = sq_radiuses[a]
             sq_rb = sq_radiuses[b]
             sq_dist = find_squared_distance(
@@ -51,7 +51,7 @@ class SimMultiSVM:
                 training_classes[b],
                 self.kernel,
             )
-            return (sq_ra + sq_rb) / sq_dist
+            return sq_dist / (sq_ra + sq_rb)
 
         class_cnt = len(training_classes.keys())
         label_to_int = {}
@@ -61,24 +61,27 @@ class SimMultiSVM:
             label_to_int[label] = i
             int_to_label[i] = label
 
-        similarity = numpy.zeros((class_cnt, class_cnt))
+        # default value is very high separability
+        separability = numpy.empty((class_cnt, class_cnt))
+        separability.fill(float('inf'))
         for i, a in enumerate(training_classes.keys()):
             int_a = label_to_int[a]
+            # should be no separability with itself
+            separability[int_a][int_a] = 0
             for b in list(training_classes.keys())[i + 1:]:
                 int_b = label_to_int[b]
+                separability[int_a][int_b] = separability[int_b][int_a] = find_separability(a, b)
 
-                similarity[int_a][int_b] = similarity[int_b][int_a] = find_similarity(a, b)
-
-        return similarity, label_to_int, int_to_label
+        return separability, label_to_int, int_to_label
 
     def train(self, training_classes):
-        similarity, label_to_int, int_to_label = self._find_similarity(training_classes)
+        separability, label_to_int, int_to_label = self._find_separability(training_classes)
         # create a mesh
         class_cnt = len(training_classes.keys())
         mesh = Graph(class_cnt)
-        for i, row in enumerate(similarity):
-            for j, dist in enumerate(row):
-                mesh.double_link(i, j, dist)
+        for i, row in enumerate(separability):
+            for j, sep in enumerate(row):
+                mesh.link(i, j, sep)
 
         # create the mst of this mesh
         mst_list = mesh.mst()
@@ -189,7 +192,7 @@ class SimMultiSVM:
 
     def predict(self, sample):
         def runner(current):
-            if current.children == None:
+            if current.children is None:
                 return current.val[0]
             # use confidence score
             confidence = [svm.decision_function(sample) for svm in current.svms]
@@ -209,7 +212,7 @@ class SimMultiSVM:
             for test in tests:
                 total += 1
                 prediction = self.predict(test)
-                if prediction != class_name:
+                if prediction[0] != class_name:
                     errors += 1
 
         return total, errors

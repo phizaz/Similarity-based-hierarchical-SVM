@@ -16,13 +16,13 @@ class TestSimMultiSVM(TestCase):
     gamma = 0.1
     svm = SimMultiSVM(gamma=gamma)
 
-    def test__find_similarity(self):
+    def test__find_separability(self):
         # svm = SimBinarySVM(Kernel)
-        (self.svm.similarity, self.svm.label_to_int, self.svm.int_to_label) = self.svm._find_similarity(
+        (self.svm.separability, self.svm.label_to_int, self.svm.int_to_label) = self.svm._find_separability(
             self.training_classes)
         # print('similarity', similarity)
-        assert self.svm.similarity.size == self.class_cnt * self.class_cnt
-        assert self.svm.similarity[0].size == self.class_cnt
+        assert self.svm.separability.size == self.class_cnt * self.class_cnt
+        assert self.svm.separability[0].size == self.class_cnt
 
         # print('labelToINt:', labelToInt)
         assert len(self.svm.label_to_int.keys()) == 6

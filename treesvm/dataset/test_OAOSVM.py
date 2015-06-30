@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from treesvm.OAOsvm import OAOSVM
+from treesvm.oaosvm import OAOSVM
 from treesvm.dataset import Dataset
 
 __author__ = 'phizaz'

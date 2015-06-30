@@ -47,6 +47,24 @@ class Dataset:
     # find the squared radius of a given class
     @staticmethod
     def squared_radius(all_points, kernel):
+        # last term of the equation
+        # this function doesn't accept any parameters
+        def last_term():
+            # summation = 0
+            # for xx in points:
+            #     for yy in points:
+            #         summation += kernel(xx, yy)
+            # this is the optimized version of the code above
+            summation = 0
+            for i, xx in enumerate(all_points):
+                summation += kernel(xx, xx)
+                for yy in all_points[i + 1:]:
+                    summation += 2 * kernel(xx, yy)
+            return 1. / all_points.size ** 2 * summation
+
+        # we cache the result for future uses
+        c = last_term()
+
         def in_sqrt(a_point):
             # first term of the equation goes here
             a = kernel(a_point, a_point)
@@ -59,25 +77,8 @@ class Dataset:
                 return -2. / all_points.size * summation
 
             b = middle_term(a_point)
-
-            # last term of the equation
-            # this function doesn't accept any parameters
-            def last_term():
-                # summation = 0
-                # for xx in points:
-                #     for yy in points:
-                #         summation += kernel(xx, yy)
-                # this is the optimized version of the code above
-                summation = 0
-                for i, xx in enumerate(all_points):
-                    summation += kernel(xx, xx)
-                    for yy in all_points[i + 1:]:
-                        summation += 2 * kernel(xx, yy)
-                return 1. / all_points.size ** 2 * summation
-
-            c = last_term()
-
             # put it all together
+            # c from above
             return a + b + c
 
         # calculate the radius (max of the sqrt thing)

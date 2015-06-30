@@ -5,7 +5,7 @@ import numpy
 import json
 import random
 from treesvm import SimBinarySVM
-from treesvm.OAOsvm import OAOSVM
+from treesvm.oaosvm import OAOSVM
 from treesvm.dataset import Dataset
 from treesvm.simmultisvm import SimMultiSVM
 
@@ -31,15 +31,23 @@ for training in training_files:
     testing_set = Dataset.load(testing_file)
     testing_classes = Dataset.split(testing_set)
 
+    best = {}
+
     for each in (
             ('OAO', OAOSVM),
-            ('SimBinaryaSVM', SimBinarySVM),
+            ('SimBinarySVM', SimBinarySVM),
             ('SimMultiSVM', SimMultiSVM),
     ):
 
         svm_type = each[0]
         SVM = each[1]
         print('with: ', svm_type)
+
+        best[svm_type] = {
+            'gamma': None,
+            'C': None,
+            'accuracy': 0
+        }
 
         start_time = time.time()
 
@@ -74,9 +82,20 @@ for training in training_files:
                 results[gamma] = {}
                 results[gamma][C] = accuracy, total, errors
 
+                if accuracy > best[svm_type]['accuracy']:
+                    tmp = best[svm_type]
+                    tmp['accuracy'] = accuracy
+                    tmp['C'] = C
+                    tmp['gamma'] = gamma
+
         print('time elapsed: ', time.time() - start_time)
         print('results:')
-        print(results)
 
         # save results into a file
         json.dump(results, open(project_name + '-' + svm_type + '.txt', 'w'))
+
+    for svm_type, each in best.items():
+        print('best of ', svm_type, ' with ', project_name)
+        print('accuracy: ', each['accuracy'])
+        print('C": ', each['C'])
+        print('gamma: ', each['gamma'])
