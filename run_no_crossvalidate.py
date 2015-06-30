@@ -5,6 +5,7 @@ import numpy
 import json
 import random
 from treesvm import SimBinarySVM
+from treesvm.OAOsvm import OAOSVM
 from treesvm.dataset import Dataset
 from treesvm.simmultisvm import SimMultiSVM
 
@@ -30,13 +31,15 @@ for training in training_files:
     testing_set = Dataset.load(testing_file)
     testing_classes = Dataset.split(testing_set)
 
-    for i, SVM in enumerate((SimBinarySVM, SimMultiSVM)):
-        if i == 0:
-            svm_type = 'SimBinarySVM'
-            print('with: ', svm_type)
-        else:
-            svm_type = 'SimMultiSVM'
-            print('with: ', svm_type)
+    for each in (
+            ('OAO', OAOSVM),
+            ('SimBinaryaSVM', SimBinarySVM),
+            ('SimMultiSVM', SimMultiSVM),
+    ):
+
+        svm_type = each[0]
+        SVM = each[1]
+        print('with: ', svm_type)
 
         start_time = time.time()
 
