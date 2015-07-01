@@ -1,3 +1,4 @@
+import time
 import numpy
 import sklearn
 from treesvm.binarytree import BinaryTree, BinaryTreeNode
@@ -8,13 +9,14 @@ from treesvm.multitree import MultiTree, MultiTreeNode
 
 
 class SimMultiSVM:
-    def __init__(self, gamma=0.1, C=1):
+    def __init__(self, gamma=0.1, C=1, verbose=False):
         self.label_to_int = None
         self.int_to_label = None
         self.tree = None
         self.kernel = self.make_rbf_kernel(gamma)
         self.gamma = gamma
         self.C = C
+        self.verbose = verbose
 
     def make_rbf_kernel(self, gamma):
         cache = {}
@@ -43,9 +45,14 @@ class SimMultiSVM:
     def _find_separability(self, training_classes):
         find_squared_distance = Dataset.squared_distance_maker()
 
+        # find radius of each class
+        if self.verbose:
+            start_time = time.process_time()
         sq_radiuses = {}
         for name, points in training_classes.items():
             sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
+        if self.verbose:
+            print('train: %.4f' % (time.process_time() - start_time))
 
         def find_separability(a, b):
             sq_ra = sq_radiuses[a]
@@ -59,15 +66,18 @@ class SimMultiSVM:
             )
             return sq_dist / (sq_ra + sq_rb)
 
+        # relabelling
         class_cnt = len(training_classes.keys())
         label_to_int = {}
         int_to_label = [None for i in range(class_cnt)]
-
         for i, label in enumerate(training_classes.keys()):
             label_to_int[label] = i
             int_to_label[i] = label
 
+        # find separability of each pair
         # default value is very high separability
+        if self.verbose:
+            start_time = time.process_time()
         separability = numpy.empty((class_cnt, class_cnt))
         separability.fill(float('inf'))
         for i, a in enumerate(training_classes.keys()):
@@ -77,6 +87,8 @@ class SimMultiSVM:
             for b in list(training_classes.keys())[i + 1:]:
                 int_b = label_to_int[b]
                 separability[int_a][int_b] = separability[int_b][int_a] = find_separability(a, b)
+        if self.verbose:
+            print('train: %.4f' % (time.process_time() - start_time))
 
         return separability, label_to_int, int_to_label
 
@@ -141,7 +153,12 @@ class SimMultiSVM:
                     # there is no need to keep going on
                     break
 
+        if self.verbose:
+            start_time = time.process_time()
         runner(tree.root)
+        if self.verbose:
+            print('train: %.4f' % (time.process_time() - start_time))
+
 
         # now got the tree
         # train svm according to the mulitree

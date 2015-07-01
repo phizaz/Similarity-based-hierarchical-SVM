@@ -19,8 +19,8 @@ class SimBinarySVM:
 
     def make_rbf_kernel(self, gamma):
         cache = {}
-        miss = 0
-        hit = 0
+        # miss = 0
+        # hit = 0
 
         def rbf(a, b):
             stra = hash(a.tostring())
@@ -52,14 +52,12 @@ class SimBinarySVM:
         find_squared_distance = Dataset.squared_distance_maker()
         # calculate all the sqRadiuses
         if self.verbose:
-            start_time = time.time()
+            start_time = time.process_time()
         sq_radiuses = {}
         for name, points in training_classes.items():
-            startTime = time.time()
             sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
-            elapsedTime = time.time() - startTime
         if self.verbose:
-            print('sq_radiuses: %.4f' % (time.time() - start_time))
+            print('sq_radiuses: %.4f' % (time.process_time() - start_time))
 
         # separability section
         # use the precalculated squared radiuses from above
@@ -75,21 +73,17 @@ class SimBinarySVM:
 
             return sq_dist / (sq_ra + sq_rb)
 
-        # create mapping function from labels to integers and vice versa
-        if self.verbose:
-            start_time = time.time()
+        # create mapping function from labels to integers and vice ver
         class_cnt = len(training_classes.keys())
         label_to_int = {}
         int_to_label = [None for i in range(class_cnt)]
         for i, label in enumerate(training_classes.keys()):
             label_to_int[label] = i
             int_to_label[i] = label
-        if self.verbose:
-            print('relabelling: %.4f' % (time.time() - start_time))
 
         # 2d matrix showing separability of each
         if self.verbose:
-            start_time = time.time()
+            start_time = time.process_time()
         separability = numpy.empty((class_cnt, class_cnt))
         separability.fill(float('inf'))
         for i, class_a in enumerate(training_classes.keys()):
@@ -102,46 +96,28 @@ class SimBinarySVM:
                 separability[a][b] = separability[b][a] = pair_separability(class_a, class_b)
 
         if self.verbose:
-            print('separability: %.4f' % (time.time() - start_time))
+            print('separability: %.4f' % (time.process_time() - start_time))
         return separability, label_to_int, int_to_label
 
     def _construct_mst_graph(self, training_classes, separability):
         # construct a graph, and find its MST
         class_cnt = len(training_classes.keys())
-        if self.verbose:
-            start_time = time.time()
         mesh = graph.Graph(class_cnt)
         for i, row in enumerate(separability):
             for j, sep in enumerate(row):
                 mesh.link(i, j, sep)
-        if self.verbose:
-            print('create mesh: %.4f' % (time.time() - start_time))
         # find its MST
-        if self.verbose:
-            start_time = time.time()
         mst_list = mesh.mst()
-        if self.verbose:
-            print('mst_list: %.4f' % (time.time() - start_time))
-        if self.verbose:
-            start_time = time.time()
         mst_list.sort(key=lambda x: -x[2])
-        if self.verbose:
-            print('sort mst_list: %.4f' % (time.time() - start_time))
         # print(mst_list)
 
-        # creat a graph of MST
-        if self.verbose:
-            start_time = time.time()
+        # creat a graph of MST()
         mst_graph = graph.Graph(class_cnt)
         for link in mst_list:
             mst_graph.double_link(link[0], link[1], link[2])
-        if self.verbose:
-            print('mst_graph: %.4f' % (time.time() - start_time))
         return mst_graph, mst_list
 
     def _construct_tree(self, mst_graph, mst_list):
-        if self.verbose:
-            start_time = time.time()
         tree = binarytree.BinaryTree()
         # the root of the tree is a list of every node
         tree.add_root(binarytree.BinaryTreeNode(mst_graph.connected_with(0)))
@@ -157,8 +133,6 @@ class SimBinarySVM:
             right = binarytree.BinaryTreeNode(mst_graph.connected_with(link[1]))
             tree.add_left(parent, left)
             tree.add_right(parent, right)
-        if self.verbose:
-            print('tree: %.4f' % (time.time() - start_time))
         return tree
 
     def train(self, training_classes):
@@ -231,10 +205,10 @@ class SimBinarySVM:
 
         # the result is stored in the tree , self.tree
         if self.verbose:
-            start_time = time.time()
+            start_time = time.process_time()
         train(training_classes)
         if self.verbose:
-            print('train: %.4f' % (time.time() - start_time))
+            print('train: %.4f' % (time.process_time() - start_time))
         return self.tree
 
     def predict(self, sample):
