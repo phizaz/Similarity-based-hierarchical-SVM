@@ -17,7 +17,8 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    ('satimage', 'satimage/sat-train.csv', 'satimage/sat-test.csv'),
+    # ('satimage', 'satimage/sat-train.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
 for training in training_files:
@@ -25,21 +26,25 @@ for training in training_files:
     print('working on project: ', project_name)
 
     # load dataset
+    given_adapter = None
+    if len(training) > 3:
+        given_adapter = training[3]
+
     training_file = training[1]
     print('train: ', training_file)
-    training_set = Dataset.load(training_file)
+    training_set = Dataset.load(training_file, adapter=given_adapter)
     training_classes = Dataset.split(training_set)
 
     testing_file = training[2]
     print('test:  ', testing_file)
-    testing_set = Dataset.load(testing_file)
+    testing_set = Dataset.load(testing_file, adapter=given_adapter)
     testing_classes = Dataset.split(testing_set)
 
     best = {}
     time_used = {}
 
     for each in (
-            ('OAO', OAOSVM),
+            # ('OAO', OAOSVM),
             ('SimBinarySVM', SimBinarySVM),
             ('SimMultiSVM', SimMultiSVM),
     ):
@@ -68,10 +73,11 @@ for training in training_files:
         instance_cnt = gammas.size * Cs.size
 
         def instance(SVM, gamma, C):
+            # force calling garbage collection (solves memory leaks)
             gc.collect()
             start_time = time.process_time()
             print('started gamma: ', gamma, ' C: ', C)
-            svm = SVM(gamma=gamma, C=C)
+            svm = SVM(gamma=gamma, C=C, verbose=True)
 
             # start_time = time.process_time()
             svm.train(training_classes)

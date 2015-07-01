@@ -12,16 +12,23 @@ class Dataset:
         self.labels = labels
 
     # load dataset from file
+    # the user can provide some adapter
+    # adapter: input: a row , output: feature, label of that row
     @staticmethod
-    def load(file):
+    def load(file, adapter=None):
         features = []
         labels = []
 
         with open(file) as csvfile:
             reader = csv.reader(csvfile, delimiter=',', quotechar='|')
             for row in reader:
-                features.append(row[:-1])
-                labels.append(row[-1])
+                if adapter != None:
+                    feature, label = adapter(row)
+                else:
+                    feature, label = row[:-1], row[-1]
+
+                features.append(feature)
+                labels.append(label)
 
         data = Dataset(np.array(features).astype(float), np.array(labels))
         return data
