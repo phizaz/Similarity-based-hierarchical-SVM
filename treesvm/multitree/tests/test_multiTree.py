@@ -30,3 +30,15 @@ class TestMultiTree(TestCase):
         result = self.tree.preorder()
         correct = [10, 2, 3, 5, 4]
         assert correct == result
+
+    def test_find(self):
+        tree = MultiTree()
+        root = tree.add_root(MultiTreeNode([1,2,3,4]))
+        a = tree.add_child(root, MultiTreeNode([1]))
+        b = tree.add_child(root, MultiTreeNode([2]))
+        c = tree.add_child(root, MultiTreeNode([3,4]))
+        assert tree.find(3).val == [3,4]
+
+        d = tree.add_child(c, MultiTreeNode([3]))
+        e = tree.add_child(c, MultiTreeNode([4]))
+        assert tree.find(4).val == [4]

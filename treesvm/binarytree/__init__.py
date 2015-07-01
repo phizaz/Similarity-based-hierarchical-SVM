@@ -86,6 +86,16 @@ class BinaryTree:
         travel(self.root)
         return leaves
 
+    # search this val in the tree
+    def find(self, val):
+        current = self.root
+        while current.left != None and current.right != None:
+            if val in current.left.val:
+                current = current.left
+            else:
+                current = current.right
+        return current
+
     @property
     def root(self):
         return self._root

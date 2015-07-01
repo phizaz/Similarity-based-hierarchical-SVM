@@ -10,13 +10,14 @@ class TestSimBinarySVM(TestCase):
     training_set = Dataset.load(training_file)
     training_classes = Dataset.split(training_set)
     class_cnt = len(training_classes.keys())
-    gamma = 0.1
-    svm = SimBinarySVM(gamma=gamma)
+    gamma = 1e-6
+    C = 0.01
+    svm = SimBinarySVM(gamma=gamma, C=C)
 
     # def test_MakeRBFKernel(self):
     #     self.fail()
 
-    def test__FindSimilarity(self):
+    def test__FindSeparability(self):
         # svm = SimBinarySVM(Kernel)
         (self.svm.separability, self.svm.label_to_int, self.svm.int_to_label) = self.svm._find_separability(self.training_classes)
         # print('similarity', similarity)

@@ -21,8 +21,14 @@ class SimMultiSVM:
 
         def rbf(a, b):
             # this one is very fast!!
-            label_a = a.tostring()
-            label_b = b.tostring()
+            stra = hash(a.tostring())
+            strb = hash(b.tostring())
+            if stra < strb:
+                label_a = stra
+                label_b = strb
+            else:
+                label_a = strb
+                label_b = stra
             if label_a in cache:
                 cached_label_a = cache[label_a]
                 if label_b in cached_label_a:
@@ -108,18 +114,17 @@ class SimMultiSVM:
 
             btree = BinaryTree()
             btree.add_root(BinaryTreeNode(current.val))
-            left = btree.root
-            right = None
             for edge in edges:
                 # remove this link
                 if edge[2] >= avg_weight:
                     # remove the link
                     mst_graph.double_unlink(edge[0], edge[1])
                     # add this link to the binary tree
-                    if edge[0] in left.val:
-                        parent = left
-                    else:
-                        parent = right
+                    parent = btree.find(edge[0])
+                    # if edge[0] in left.val:
+                    #     parent = left
+                    # else:
+                    #     parent = right
                     left = btree.add_left(parent, BinaryTreeNode(mst_graph.connected_with(edge[0])))
                     right = btree.add_right(parent, BinaryTreeNode(mst_graph.connected_with(edge[1])))
                 # else or the last one

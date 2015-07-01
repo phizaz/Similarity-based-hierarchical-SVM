@@ -10,7 +10,7 @@ def timer(func):
     return time.time() - start_time
 
 
-training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-m.csv'
+training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-s.csv'
 training_set = Dataset.load(training_file)
 training_classes = Dataset.split(training_set)
 
@@ -18,7 +18,7 @@ testing_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simb
 testing_set = Dataset.load(testing_file)
 testing_classes = Dataset.split(testing_set)
 
-svm = SimBinarySVM(gamma=0.0001, C=10)
+svm = SimBinarySVM(gamma=0.0001, C=10, verbose=True)
 def train():
     svm.train(training_classes)
 print('training: %.4f' % (timer(train)))

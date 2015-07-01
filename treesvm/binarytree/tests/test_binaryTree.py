@@ -131,3 +131,19 @@ class TestBinaryTree(TestCase):
         self.create_binary_search_tree(tree, [3,1,4,7,6,8])
         assert tree.leaves() == [1, 4, 6, 8]
 
+    def test_find(self):
+        tree = BinaryTree()
+        root = tree.add_root(BinaryTreeNode([1,2,3,4,5]))
+        a = tree.add_left(root, BinaryTreeNode([1,2,3]))
+        b = tree.add_right(a, BinaryTreeNode([3]))
+        a = tree.add_left(a, BinaryTreeNode([1,2]))
+        b = tree.add_right(a, BinaryTreeNode([2]))
+        a = tree.add_left(a, BinaryTreeNode([1]))
+        b = tree.add_right(root, BinaryTreeNode([4,5]))
+        a = tree.add_left(b, BinaryTreeNode([4]))
+        b = tree.add_right(b, BinaryTreeNode([5]))
+
+        assert tree.find(3).val == [3]
+        assert tree.find(4).val == [4]
+
+

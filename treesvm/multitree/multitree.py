@@ -34,3 +34,11 @@ class MultiTree:
 
         runner(self.root)
         return output_list
+
+    def find(self, val):
+        current = self.root
+        while current.children != None:
+            for child in current.children:
+                if val in child.val:
+                    current = child
+        return current
