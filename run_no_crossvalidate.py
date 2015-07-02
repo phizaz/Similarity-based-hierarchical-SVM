@@ -17,8 +17,8 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    # ('satimage', 'satimage/sat-train.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
-    ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
+    ('satimage', 'satimage/sat-train-s.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    # ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
 for training in training_files:
@@ -37,14 +37,14 @@ for training in training_files:
 
     testing_file = training[2]
     print('test:  ', testing_file)
-    testing_set = Dataset.load(testing_file, adapter=gi ven_adapter)
+    testing_set = Dataset.load(testing_file, adapter=given_adapter)
     testing_classes = Dataset.split(testing_set)
 
     best = {}
     time_used = {}
 
     for each in (
-            # ('OAO', OAOSVM),
+            ('OAO', OAOSVM),
             ('SimBinarySVM', SimBinarySVM),
             ('SimMultiSVM', SimMultiSVM),
     ):
@@ -77,7 +77,7 @@ for training in training_files:
             gc.collect()
             start_time = time.process_time()
             print('started gamma: ', gamma, ' C: ', C)
-            svm = SVM(gamma=gamma, C=C, verbose=True)
+            svm = SVM(gamma=gamma, C=C)
 
             # start_time = time.process_time()
             svm.train(training_classes)
@@ -115,15 +115,25 @@ for training in training_files:
                     tmp['C'] = C
                     tmp['gamma'] = gamma
 
+        # show report after each svm type
         print('time elapsed: ', time.process_time() - start_time)
         print('results:')
+        print('best of ', svm_type, ' with ', project_name)
+        print('accuracy: ', best[svm_type]['accuracy'])
+        print('best C: ', best[svm_type]['C'])
+        print('best gamma: ', best[svm_type]['gamma'])
+        print('time avg: ', time_used[svm_type])
 
         # save results into a file
         json.dump(results, open(project_name + '-' + svm_type + '.txt', 'w'))
 
+    # sum up all the reports again
     for svm_type, each in best.items():
         print('best of ', svm_type, ' with ', project_name)
         print('accuracy: ', each['accuracy'])
         print('C": ', each['C'])
         print('gamma: ', each['gamma'])
         print('time avg: ', time_used[svm_type])
+    # save all the reports back to a file
+    json.dump(best, open(project_name + '-best.txt', 'w'))
+    json.dump(best, open(project_name + '-time.txt', 'w'))
