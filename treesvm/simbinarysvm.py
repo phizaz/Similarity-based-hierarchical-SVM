@@ -17,6 +17,16 @@ class SimBinarySVM:
         self.C = C
         self.verbose = verbose
 
+    # this use precomputed kernel matrix
+    def make_gram_matrix(self, vectors, gamma):
+        matrix = sklearn.metrics.pairwise.rbf_kernel(vectors, vectors, gamma)
+        def rbf(a, b):
+            # vector a, b need to have index at the first element
+            return matrix[a[0]][b[0]]
+        return rbf
+
+
+    # this uses normal caching techinque
     def make_rbf_kernel(self, gamma):
         cache = {}
         # miss = 0
@@ -49,13 +59,31 @@ class SimBinarySVM:
         return rbf
 
     def _find_separability(self, training_classes):
+        # create a matrix list and give them indexes
+        vectors = []
+        training_classes_with_idx = {}
+        idx = 0
+        for name, points in training_classes.items():
+            this_class = training_classes_with_idx[name] = []
+            for point in points:
+                # give it an index
+                vector = point.tolist()
+                vector_with_idx = [idx] + vector
+                idx += 1
+                vectors.append(vector)
+                this_class.append(vector_with_idx)
+            training_classes_with_idx[name] = numpy.array(this_class)
+
+        vectors = numpy.array(vectors)
+        kernel = self.make_gram_matrix(vectors, self.gamma)
+
         find_squared_distance = Dataset.squared_distance_maker()
         # calculate all the sqRadiuses
         if self.verbose:
             start_time = time.process_time()
         sq_radiuses = {}
-        for name, points in training_classes.items():
-            sq_radiuses[name] = Dataset.squared_radius(points, self.kernel)
+        for name, points in training_classes_with_idx.items():
+            sq_radiuses[name] = Dataset.squared_radius(points, kernel)
         if self.verbose:
             print('sq_radiuses: %.4f' % (time.process_time() - start_time))
 
@@ -66,10 +94,10 @@ class SimBinarySVM:
             sq_rb = sq_radiuses[name_b]
             sq_dist = find_squared_distance(
                 name_a,
-                training_classes[name_a],
+                training_classes_with_idx[name_a],
                 name_b,
-                training_classes[name_b],
-                self.kernel, )
+                training_classes_with_idx[name_b],
+                kernel, )
 
             return sq_dist / (sq_ra + sq_rb)
 

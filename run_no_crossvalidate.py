@@ -37,7 +37,7 @@ for training in training_files:
 
     testing_file = training[2]
     print('test:  ', testing_file)
-    testing_set = Dataset.load(testing_file, adapter=given_adapter)
+    testing_set = Dataset.load(testing_file, adapter=gi ven_adapter)
     testing_classes = Dataset.split(testing_set)
 
     best = {}

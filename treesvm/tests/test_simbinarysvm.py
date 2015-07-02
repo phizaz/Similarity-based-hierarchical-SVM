@@ -118,4 +118,4 @@ class TestSimBinarySVM(TestCase):
                 cnt += 1
                 assert rbf_kernel(a[i], b[i]) == original_kernel(a[i], b[i])
 
-        assert cnt == 0
+        assert cnt == 150

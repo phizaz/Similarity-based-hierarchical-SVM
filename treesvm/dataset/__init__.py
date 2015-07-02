@@ -67,7 +67,7 @@ class Dataset:
                 summation += kernel(xx, xx)
                 for yy in all_points[i + 1:]:
                     summation += 2 * kernel(xx, yy)
-            return 1. / all_points.size ** 2 * summation
+            return 1. / all_points.shape[0] ** 2 * summation
 
         # we cache the result for future uses
         c = last_term()
@@ -81,7 +81,7 @@ class Dataset:
                 summation = 0
                 for p in all_points:
                     summation += kernel(point, p)
-                return -2. / all_points.size * summation
+                return -2. / all_points.shape[0] * summation
 
             b = middle_term(a_point)
             # put it all together
