@@ -104,7 +104,6 @@ class TestSimBinarySVM(TestCase):
 
         def original_kernel(a, b):
             import numpy
-
             return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
 
         cnt = 0
@@ -119,3 +118,36 @@ class TestSimBinarySVM(TestCase):
                 assert rbf_kernel(a[i], b[i]) == original_kernel(a[i], b[i])
 
         assert cnt == 150
+
+    def test_make_gram_matrix(self):
+        gamma = 0.1
+        vectors = []
+        training_classes_with_idx = {}
+        idx = 0
+        for name, points in self.training_classes.items():
+            this_class = training_classes_with_idx[name] = []
+            for point in points:
+                # give it an index
+                vector = point.tolist()
+                vector_with_idx = [idx] + vector
+                idx += 1
+                vectors.append(vector)
+                this_class.append(vector_with_idx)
+            training_classes_with_idx[name] = numpy.array(this_class)
+
+        vectors = numpy.array(vectors)
+        kernel = self.svm.make_gram_matrix(vectors, gamma)
+
+        def original_kernel(a, b):
+            import numpy
+            return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+
+        for class_name, samples in training_classes_with_idx.items():
+            a = samples
+            b = a[:].tolist()
+            random.shuffle(b)
+            b = numpy.array(b)
+
+            for i in range(a.shape[0]):
+                assert abs(kernel(a[i], b[i]) - original_kernel(a[i][1:], b[i][1:])) < 1e-5
+

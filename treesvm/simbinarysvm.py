@@ -19,12 +19,16 @@ class SimBinarySVM:
 
     # this use precomputed kernel matrix
     def make_gram_matrix(self, vectors, gamma):
-        matrix = sklearn.metrics.pairwise.rbf_kernel(vectors, vectors, gamma)
+        if self.verbose:
+            start_time = time.process_time()
+        matrix = sklearn.metrics.pairwise.rbf_kernel(vectors, gamma=gamma)
+        if self.verbose:
+            print('gram matrix: %.4f' % (time.process_time() - start_time))
+
         def rbf(a, b):
             # vector a, b need to have index at the first element
             return matrix[a[0]][b[0]]
         return rbf
-
 
     # this uses normal caching techinque
     def make_rbf_kernel(self, gamma):
@@ -89,7 +93,7 @@ class SimBinarySVM:
 
         # separability section
         # use the precalculated squared radiuses from above
-        def pair_separability(name_a, name_b):
+        def find_separability(name_a, name_b):
             sq_ra = sq_radiuses[name_a]
             sq_rb = sq_radiuses[name_b]
             sq_dist = find_squared_distance(
@@ -114,17 +118,16 @@ class SimBinarySVM:
             start_time = time.process_time()
         separability = numpy.empty((class_cnt, class_cnt))
         separability.fill(float('inf'))
-        for i, class_a in enumerate(training_classes.keys()):
-            # convert to int
-            a = label_to_int[class_a]
-            separability[a][a] = 0
-            for class_b in list(training_classes.keys())[i + 1:]:
-                # convert to int
-                b = label_to_int[class_b]
-                separability[a][b] = separability[b][a] = pair_separability(class_a, class_b)
-
+        for i, a in enumerate(training_classes.keys()):
+            int_a = label_to_int[a]
+            # should be no separability with itself
+            separability[int_a][int_a] = 0
+            for b in list(training_classes.keys())[i + 1:]:
+                int_b = label_to_int[b]
+                separability[int_a][int_b] = separability[int_b][int_a] = find_separability(a, b)
         if self.verbose:
-            print('separability: %.4f' % (time.process_time() - start_time))
+            print('train: %.4f' % (time.process_time() - start_time))
+            
         return separability, label_to_int, int_to_label
 
     def _construct_mst_graph(self, training_classes, separability):
