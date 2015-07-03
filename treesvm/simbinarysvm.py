@@ -6,16 +6,15 @@ from . import graph
 from . import binarytree
 import sklearn.svm
 import time
+from treesvm.dataset.tools import Tools
 
 
 class SimBinarySVM:
     def __init__(self, gamma=0.1, C=1.0, verbose=False):
-        # kernel should have its own gamma
-        # but, since we're using the traditional scikit 'rbf' version as well, we need another gamma for it as well
-        self.kernel = self.make_rbf_kernel(gamma)
         self.gamma = gamma
         self.C = C
         self.verbose = verbose
+        self.tools = Tools()
 
     # this use precomputed kernel matrix
     def make_gram_matrix(self, vectors, gamma):
@@ -31,36 +30,37 @@ class SimBinarySVM:
         return rbf
 
     # this uses normal caching techinque
-    def make_rbf_kernel(self, gamma):
-        cache = {}
-        # miss = 0
-        # hit = 0
-
-        def rbf(a, b):
-            stra = hash(a.tostring())
-            strb = hash(b.tostring())
-            if stra < strb:
-                label_a = stra
-                label_b = strb
-            else:
-                label_a = strb
-                label_b = stra
-            if label_a in cache:
-                cached_label_a = cache[label_a]
-                if label_b in cached_label_a:
-                    # nonlocal hit
-                    # hit += 1
-                    return cached_label_a[label_b]
-            else:
-                cached_label_a = cache[label_a] = {}
-            # nonlocal miss
-            # miss += 1
-            # if miss % 10000 == 0:
-            #     print('size of cache: ', sys.getsizeof(cache), ' miss: ', miss, ' hit: ', hit)
-            cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
-            return res
-
-        return rbf
+    # this shouldn't be used anymore
+    # def make_rbf_kernel(self, gamma):
+    #     cache = {}
+    #     # miss = 0
+    #     # hit = 0
+    #
+    #     def rbf(a, b):
+    #         stra = hash(a.tostring())
+    #         strb = hash(b.tostring())
+    #         if stra < strb:
+    #             label_a = stra
+    #             label_b = strb
+    #         else:
+    #             label_a = strb
+    #             label_b = stra
+    #         if label_a in cache:
+    #             cached_label_a = cache[label_a]
+    #             if label_b in cached_label_a:
+    #                 # nonlocal hit
+    #                 # hit += 1
+    #                 return cached_label_a[label_b]
+    #         else:
+    #             cached_label_a = cache[label_a] = {}
+    #         # nonlocal miss
+    #         # miss += 1
+    #         # if miss % 10000 == 0:
+    #         #     print('size of cache: ', sys.getsizeof(cache), ' miss: ', miss, ' hit: ', hit)
+    #         cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+    #         return res
+    #
+    #     return rbf
 
     def _find_separability(self, training_classes):
         # create a matrix list and give them indexes
@@ -81,13 +81,12 @@ class SimBinarySVM:
         vectors = numpy.array(vectors)
         kernel = self.make_gram_matrix(vectors, self.gamma)
 
-        find_squared_distance = Dataset.squared_distance_maker()
         # calculate all the sqRadiuses
         if self.verbose:
             start_time = time.process_time()
         sq_radiuses = {}
         for name, points in training_classes_with_idx.items():
-            sq_radiuses[name] = Dataset.squared_radius(points, kernel)
+            sq_radiuses[name] = self.tools.squared_radius(name, points, kernel)
         if self.verbose:
             print('sq_radiuses: %.4f' % (time.process_time() - start_time))
 
@@ -96,7 +95,7 @@ class SimBinarySVM:
         def find_separability(name_a, name_b):
             sq_ra = sq_radiuses[name_a]
             sq_rb = sq_radiuses[name_b]
-            sq_dist = find_squared_distance(
+            sq_dist = self.tools.squared_distance(
                 name_a,
                 training_classes_with_idx[name_a],
                 name_b,
@@ -126,7 +125,7 @@ class SimBinarySVM:
                 int_b = label_to_int[b]
                 separability[int_a][int_b] = separability[int_b][int_a] = find_separability(a, b)
         if self.verbose:
-            print('train: %.4f' % (time.process_time() - start_time))
+            print('separability: %.4f' % (time.process_time() - start_time))
             
         return separability, label_to_int, int_to_label
 
@@ -192,16 +191,13 @@ class SimBinarySVM:
                 left_class = {}
                 right_class = {}
                 for class_name, class_samples in universe.items():
-                    # just put in this var that's all
-                    dropbox = None
                     # decide if this label is left hand side or right ?
                     if class_name in current.left.val:
                         # it belongs to the left group
-                        dropbox = left_class
+                        left_class[class_name] = class_samples
                     else:
-                        dropbox = right_class
-                    # add the class into the dropbox
-                    dropbox[class_name] = class_samples
+                        # add the class into the dropbox
+                        right_class[class_name] = class_samples
 
                 # the label of the left side is '0'
                 # the lable of the right side is '1'
@@ -211,12 +207,12 @@ class SimBinarySVM:
                 for class_name, class_samples in left_class.items():
                     samples = class_samples.tolist()
                     training += samples
-                    label += [0 for i in range(len(samples))]
+                    label += [0 for i in samples]
 
                 for class_name, class_samples in right_class.items():
                     samples = class_samples.tolist()
                     training += samples
-                    label += [1 for i in range(len(samples))]
+                    label += [1 for i in samples]
 
                 training = numpy.array(training)
                 label = numpy.array(label)

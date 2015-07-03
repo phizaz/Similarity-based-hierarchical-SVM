@@ -4,6 +4,7 @@ import sklearn
 from treesvm.binarytree import BinaryTree, BinaryTreeNode
 
 from treesvm.dataset import Dataset
+from treesvm.dataset.tools import Tools
 from treesvm.graph import Graph
 from treesvm.multitree import MultiTree, MultiTreeNode
 
@@ -13,10 +14,10 @@ class SimMultiSVM:
         self.label_to_int = None
         self.int_to_label = None
         self.tree = None
-        self.kernel = self.make_rbf_kernel(gamma)
         self.gamma = gamma
         self.C = C
         self.verbose = verbose
+        self.tools = Tools()
 
     # this use precomputed kernel matrix
     def make_gram_matrix(self, vectors, gamma):
@@ -32,29 +33,29 @@ class SimMultiSVM:
         return rbf
 
     # this uses normal caching techinque
-    def make_rbf_kernel(self, gamma):
-        cache = {}
-
-        def rbf(a, b):
-            # this one is very fast!!
-            stra = hash(a.tostring())
-            strb = hash(b.tostring())
-            if stra < strb:
-                label_a = stra
-                label_b = strb
-            else:
-                label_a = strb
-                label_b = stra
-            if label_a in cache:
-                cached_label_a = cache[label_a]
-                if label_b in cached_label_a:
-                    return cached_label_a[label_b]
-            else:
-                cached_label_a = cache[label_a] = {}
-            cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
-            return res
-
-        return rbf
+    # def make_rbf_kernel(self, gamma):
+    #     cache = {}
+    #
+    #     def rbf(a, b):
+    #         # this one is very fast!!
+    #         stra = hash(a.tostring())
+    #         strb = hash(b.tostring())
+    #         if stra < strb:
+    #             label_a = stra
+    #             label_b = strb
+    #         else:
+    #             label_a = strb
+    #             label_b = stra
+    #         if label_a in cache:
+    #             cached_label_a = cache[label_a]
+    #             if label_b in cached_label_a:
+    #                 return cached_label_a[label_b]
+    #         else:
+    #             cached_label_a = cache[label_a] = {}
+    #         cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
+    #         return res
+    #
+    #     return rbf
 
     def _find_separability(self, training_classes):
         # create a matrix list and give them indexes
@@ -75,20 +76,19 @@ class SimMultiSVM:
         vectors = numpy.array(vectors)
         kernel = self.make_gram_matrix(vectors, self.gamma)
 
-        find_squared_distance = Dataset.squared_distance_maker()
         # find radius of each class
         if self.verbose:
             start_time = time.process_time()
         sq_radiuses = {}
         for name, points in training_classes_with_idx.items():
-            sq_radiuses[name] = Dataset.squared_radius(points, kernel)
+            sq_radiuses[name] = self.tools.squared_radius(name, points, kernel)
         if self.verbose:
             print('train: %.4f' % (time.process_time() - start_time))
 
         def find_separability(a, b):
             sq_ra = sq_radiuses[a]
             sq_rb = sq_radiuses[b]
-            sq_dist = find_squared_distance(
+            sq_dist = self.tools.squared_distance(
                 a,
                 training_classes_with_idx[a],
                 b,

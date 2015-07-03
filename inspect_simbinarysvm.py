@@ -10,7 +10,7 @@ def timer(func):
     return time.process_time() - start_time
 
 
-training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-m.csv'
+training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train.csv'
 training_set = Dataset.load(training_file)
 training_classes = Dataset.split(training_set)
 

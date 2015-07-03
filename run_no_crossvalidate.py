@@ -17,8 +17,8 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    ('satimage', 'satimage/sat-train-s.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
-    # ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
+    # ('satimage', 'satimage/sat-train-s.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
 for training in training_files:
@@ -44,8 +44,8 @@ for training in training_files:
     time_used = {}
 
     for each in (
-            ('OAO', OAOSVM),
-            ('SimBinarySVM', SimBinarySVM),
+            # ('OAO', OAOSVM),
+            # ('SimBinarySVM', SimBinarySVM),
             ('SimMultiSVM', SimMultiSVM),
     ):
 
@@ -136,4 +136,4 @@ for training in training_files:
         print('time avg: ', time_used[svm_type])
     # save all the reports back to a file
     json.dump(best, open(project_name + '-best.txt', 'w'))
-    json.dump(best, open(project_name + '-time.txt', 'w'))
+    json.dump(time_used, open(project_name + '-time.txt', 'w'))
