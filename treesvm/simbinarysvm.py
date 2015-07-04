@@ -14,7 +14,7 @@ class SimBinarySVM:
         self.gamma = gamma
         self.C = C
         self.verbose = verbose
-        self.tools = Tools()
+        self.tools = None
 
     # this use precomputed kernel matrix
     def make_gram_matrix(self, vectors, gamma):
@@ -80,13 +80,14 @@ class SimBinarySVM:
 
         vectors = numpy.array(vectors)
         kernel = self.make_gram_matrix(vectors, self.gamma)
+        self.tools = Tools(kernel)
 
         # calculate all the sqRadiuses
         if self.verbose:
             start_time = time.process_time()
         sq_radiuses = {}
         for name, points in training_classes_with_idx.items():
-            sq_radiuses[name] = self.tools.squared_radius(name, points, kernel)
+            sq_radiuses[name] = self.tools.squared_radius(name, points)
         if self.verbose:
             print('sq_radiuses: %.4f' % (time.process_time() - start_time))
 
@@ -100,7 +101,7 @@ class SimBinarySVM:
                 training_classes_with_idx[name_a],
                 name_b,
                 training_classes_with_idx[name_b],
-                kernel, )
+            )
 
             return sq_dist / (sq_ra + sq_rb)
 

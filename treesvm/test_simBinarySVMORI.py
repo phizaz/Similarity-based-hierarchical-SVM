@@ -1,84 +1,61 @@
 from unittest import TestCase
 import numpy
-import random
-from treesvm import SimBinarySVM
-from treesvm.dataset import Dataset
 import pytest
+import random
+from treesvm.dataset import Dataset
+from treesvm.simbinarysvm_ori import SimBinarySVMORI
 
-class TestSimBinarySVM(TestCase):
+__author__ = 'phizaz'
+
+
+class TestSimBinarySVMORI(TestCase):
     training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-s.csv'
     training_set = Dataset.load(training_file)
     training_classes = Dataset.split(training_set)
     class_cnt = len(training_classes.keys())
     gamma = 1e-6
     C = 0.01
-    svm = SimBinarySVM(gamma=gamma, C=C)
+    svm = SimBinarySVMORI(gamma=gamma, C=C)
 
-    # def test_MakeRBFKernel(self):
-    #     self.fail()
+    def test_create_mapping(self):
+        self.label_to_int, self.int_to_label = self.svm._create_mapping(self.training_classes)
 
-    def test_find_separability(self):
-        # svm = SimBinarySVM(Kernel)
-        (self.svm.separability, self.svm.label_to_int, self.svm.int_to_label) = self.svm._find_separability(self.training_classes)
-        # print('similarity', similarity)
-        assert self.svm.separability.size == self.class_cnt * self.class_cnt
-        assert self.svm.separability[0].size == self.class_cnt
-
-        # print('labelToINt:', labelToInt)
-        assert len(self.svm.label_to_int.keys()) == 6
-
-        # print('intToLabel', intToLabel)
-        for idx, val in enumerate(self.svm.int_to_label):
-            assert self.svm.label_to_int[val] == idx
-
-    @pytest.mark.run(after='test_find_separability')
-    def test_construct_mst_graph(self):
-        (self.svm.mst_graph, self.svm.mst_list) = self.svm._construct_mst_graph(self.training_classes, self.svm.separability)
-        assert len(self.svm.mst_list) == self.class_cnt - 1
-        assert len(self.svm.mst_graph.connected_with(0)) == self.class_cnt
-
-        cnt = 0
-        for i, row in enumerate(self.svm.mst_graph.connection):
-            for j, dist in enumerate(row):
-                if dist != float('inf'):
-                    cnt += 1
-
-        # the graph bidirectional
-        assert cnt == (self.class_cnt - 1) * 2
-
-    @pytest.mark.run(after='test_construct_mst_graph')
-    def test_construct_tree(self):
-        self.svm.tree = self.svm._construct_tree(self.svm.mst_graph, self.svm.mst_list)
+    @pytest.mark.run(after='test_create_mapping')
+    def test_create_tree(self):
+        self.label_to_int, self.int_to_label = self.svm._create_mapping(self.training_classes)
+        self.group_mgr = self.svm._create_tree(self.training_classes, self.label_to_int)
 
         def runner(current):
-            if current.left is None and current.right is None:
+            if current.children == None:
                 return
 
-            assert len(current.val) == len(current.left.val) + len(current.right.val)
+            child_universe = []
+            for child in current.children:
+                child_universe += list(child.universe.keys())
+            assert set(current.universe.keys()) == set(child_universe)
 
-            assert set(current.val) == set(current.left.val + current.right.val)
+            for child in current.children:
+                runner(child)
 
-            runner(current.left)
-            runner(current.right)
-
-        runner(self.svm.tree.root)
+        runner(next(iter(self.group_mgr.groups.values())))
 
     @pytest.mark.run(after='test_construct_tree')
     def test_train(self):
-        self.svm.train(self.training_classes)
+        group_mgr = self.svm.train(self.training_classes)
 
         def runner(current):
-            if current.left is None and current.right is None:
+            if current.children == None:
                 return
 
             assert current.svm
-            runner(current.left)
-            runner(current.right)
+            for child in current.children:
+                runner(child)
 
-        runner(self.svm.tree.root)
+        runner(next(iter(group_mgr.groups.values())))
 
     @pytest.mark.run(after='test_train')
     def test_predict(self):
+        group_mgr = self.svm.train(self.training_classes)
         errors = 0
         total = 0
         for class_name, class_samples in self.training_classes.items():
@@ -93,6 +70,7 @@ class TestSimBinarySVM(TestCase):
 
     @pytest.mark.run(after='test_predict')
     def test_cross_validate(self):
+        group_mgr = self.svm.train(self.training_classes)
         # 10 folds validation
         res = self.svm.cross_validate(10, self.training_classes)
         # this just to get the idea
@@ -119,6 +97,7 @@ class TestSimBinarySVM(TestCase):
 
         def original_kernel(a, b):
             import numpy
+
             return numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
 
         for class_name, samples in training_classes_with_idx.items():
@@ -129,4 +108,3 @@ class TestSimBinarySVM(TestCase):
 
             for i in range(a.shape[0]):
                 assert abs(kernel(a[i], b[i]) - original_kernel(a[i][1:], b[i][1:])) < 1e-5
-
