@@ -27,7 +27,7 @@ class SimBinarySVMORI:
 
         def rbf(a, b):
             # vector a, b need to have index at the first element
-            return matrix[a[0]][b[0]]
+            return matrix[int(a[0])][int(b[0])]
         return rbf
 
     def _create_mapping(self, training_classes):

@@ -29,7 +29,7 @@ class SimMultiSVM:
 
         def rbf(a, b):
             # vector a, b need to have index at the first element
-            return matrix[a[0]][b[0]]
+            return matrix[int(a[0])][int(b[0])]
         return rbf
 
     # this uses normal caching techinque
