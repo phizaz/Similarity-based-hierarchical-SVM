@@ -2,35 +2,46 @@ import numpy
 import sklearn
 
 
-class OAOSVM:
+class OAASVM:
     def __init__(self, gamma=0.1, C=1.0, verbose=False):
         self.int_to_label = None
         self.label_to_int = None
-        self.svm = None
+        self.svms = None
         self.gamma = gamma
         self.C = C
         self.verbose = verbose
 
     def train(self, training_classes):
-        training = []
-        label = []
+        self.svms = {}
+        for focus_name in training_classes:
+            samples = None
+            labels = None
+            for name, points in training_classes.items():
+                # just add all the points to this list
+                if samples == None:
+                    samples = points
+                else:
+                    samples = numpy.append(samples, points, axis=0)
 
-        self.label_to_int = {}
-        self.int_to_label = {}
-        i = 0
-        for class_name, samples in training_classes.items():
-            training += samples.tolist()
-            self.label_to_int[class_name] = i
-            self.int_to_label[i] = class_name
-            label += [i for j in range(samples.shape[0])]
-            i += 1
-        training = numpy.array(training)
-        label = numpy.array(label)
-        self.svm = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
+                if focus_name is name:
+                    # mark it as 0
+                    if labels == None:
+                        labels = numpy.array([0 for i in points])
+                    else:
+                        labels = numpy.append(labels, [0 for i in points])
+                else:
+                    # mark it as 1
+                    if labels == None:
+                        labels = numpy.array([1 for i in points])
+                    else:
+                        labels = numpy.append(labels, [1 for i in points])
+            self.svms[focus_name] = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(samples, labels)
 
     def predict(self, sample):
-        prediction = self.svm.predict(sample)
-        return self.int_to_label[prediction[0]], 0
+        iterations = len(self.svms.keys())
+        confidence = {name: svm.decision_function(sample) for name, svm in self.svms.items()}
+        min_name = min(confidence, key=confidence.get)
+        return min_name, iterations
 
     def test(self, testing_classes):
         total = 0

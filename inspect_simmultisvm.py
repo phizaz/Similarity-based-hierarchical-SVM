@@ -18,7 +18,7 @@ testing_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simb
 testing_set = Dataset.load(testing_file)
 testing_classes = Dataset.split(testing_set)
 
-svm = SimMultiSVM(gamma=0.0001, C=10)
+svm = SimMultiSVM(gamma=0.001, C=10)
 def train():
     svm.train(training_classes)
 print('training: %.4f' % (timer(train)))

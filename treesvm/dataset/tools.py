@@ -12,12 +12,12 @@ class Tools:
 
     def full_combination(self, label, points):
         if label in self.cache:
-            self.hits += 1
-            print('hits: ', self.hits)
+            # self.hits += 1
+            # print('hits: ', self.hits)
             return self.cache[label]
 
-        self.misses += 1
-        print('misses: ', self.misses)
+        # self.misses += 1
+        # print('misses: ', self.misses)
         sum = 0
         for i, xx in enumerate(points):
             sum += self.kernel(xx, xx)

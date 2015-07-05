@@ -118,25 +118,29 @@ class SimBinarySVMORI:
     def predict(self, sample):
         # current is the only member in group manager
         current = next(iter(self.group_mgr.groups.values()))
+        iterations = 0
         while current.children != None:
             prediction = current.svm.predict(sample)
+            iterations += 1
             current = current.children[prediction]
 
         one_left = list(current.universe.keys())[0]
-        return self.int_to_label[one_left]
+        return self.int_to_label[one_left], iterations
 
     def test(self, testing_classes):
         total = 0
         errors = 0
+        total_itr = 0
 
         for name, points in testing_classes.items():
             for test in points:
                 total += 1
-                prediction = self.predict(test)
-                if prediction[0] != name:
+                prediction, iterations = self.predict(test)
+                total_itr += iterations
+                if prediction != name:
                     errors += 1
 
-        return total, errors
+        return total, errors, total_itr
 
     def cross_validate(self, folds, training_classes):
         total = 0

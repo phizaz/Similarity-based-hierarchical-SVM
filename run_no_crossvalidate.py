@@ -6,8 +6,10 @@ import numpy
 import json
 import random
 from treesvm import SimBinarySVM
+from treesvm.oaasvm import OAASVM
 from treesvm.oaosvm import OAOSVM
 from treesvm.dataset import Dataset
+from treesvm.simbinarysvm_ori import SimBinarySVMORI
 from treesvm.simmultisvm import SimMultiSVM
 
 print('creating svm and testing with supplied test data')
@@ -17,8 +19,9 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    # ('satimage', 'satimage/sat-train-s.csv', 'satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
-    ('letter', 'letter/letter-train.txt', 'letter/letter-test.txt', lambda row: (row[1:], row[0])),
+    # ('pendigits', 'datasets/pendigits/pendigits.tra', 'datasets/pendigits/pendigits.tes', lambda row: (row[:-1], row[-1])),
+    ('satimage', 'datasets/satimage/sat-train.csv', 'datasets/satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    # ('letter', 'datasets/letter/letter-train.txt', 'datasets/letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
 for training in training_files:
@@ -44,8 +47,10 @@ for training in training_files:
     time_used = {}
 
     for each in (
-            # ('OAO', OAOSVM),
-            # ('SimBinarySVM', SimBinarySVM),
+            ('OAA', OAASVM),
+            ('OAO', OAOSVM),
+            ('SimBinarySVM_ORI', SimBinarySVMORI),
+            ('SimBinarySVM', SimBinarySVM),
             ('SimMultiSVM', SimMultiSVM),
     ):
 
@@ -64,10 +69,12 @@ for training in training_files:
         start_time = time.process_time()
 
         # normally it's 9 steps each
-        gammas = numpy.logspace(-6, 2, 9)
+        # gammas = numpy.logspace(-6, 2, 9)
+        gammas = numpy.logspace(-6, 0, 7)
         print('gammas: ', gammas)
         # it's 9 steps
-        Cs = numpy.logspace(-2, 6, 9)
+        # Cs = numpy.logspace(-2, 6, 9)
+        Cs = numpy.logspace(-2, 4, 7)
         print('Cs: ', Cs)
 
         instance_cnt = gammas.size * Cs.size
@@ -85,13 +92,21 @@ for training in training_files:
 
             # start_time = time.process_time()
             result = svm.test(testing_classes)
+            testing_cnt = 0
+            for name, points in testing_classes.items():
+                testing_cnt += points.shape[0]
             # print('gamma: ', gamma, ' C: ', C, ' testing time: %f' % (time.process_time() - start_time))
 
             total = result[0]
             errors = result[1]
+            total_itr = result[2]
+            avg_itr = total_itr / testing_cnt
             accuracy = (total - errors) / total
             time_elapsed = time.process_time() - start_time
-            return accuracy, total, errors, time_elapsed
+
+            print('finished! gamma: ', gamma, ' C:', C, ' accuracy: ', accuracy, ' avg_itr: ', avg_itr)
+            print('time used: ', time_elapsed)
+            return accuracy, total, errors, time_elapsed, avg_itr
 
         results = {}
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
@@ -102,11 +117,10 @@ for training in training_files:
             # gamma, C
             for job in concurrent.futures.as_completed(jobs):
                 gamma, C = jobs[job]
-                accuracy, total, errors, time_elapsed = job.result()
-                print('finished! gamma: ', gamma, ' C:', C, ' accuracy: ', accuracy)
+                accuracy, total, errors, time_elapsed, avg_itr = job.result()
                 # store the result
                 results[gamma] = {}
-                results[gamma][C] = accuracy, total, errors
+                results[gamma][C] = accuracy, total, errors, avg_itr
                 time_used[svm_type] += time_elapsed / instance_cnt
 
                 if accuracy > best[svm_type]['accuracy']:
@@ -114,6 +128,7 @@ for training in training_files:
                     tmp['accuracy'] = accuracy
                     tmp['C'] = C
                     tmp['gamma'] = gamma
+                    tmp['avg_itr'] = avg_itr
 
         # show report after each svm type
         print('time elapsed: ', time.process_time() - start_time)
@@ -122,10 +137,11 @@ for training in training_files:
         print('accuracy: ', best[svm_type]['accuracy'])
         print('best C: ', best[svm_type]['C'])
         print('best gamma: ', best[svm_type]['gamma'])
+        print('best avg_itr: ', best[svm_type]['avg_itr'])
         print('time avg: ', time_used[svm_type])
 
         # save results into a file
-        json.dump(results, open(project_name + '-' + svm_type + '.txt', 'w'))
+        json.dump(results, open('results/' + project_name + '-' + svm_type + '.txt', 'w'))
 
     # sum up all the reports again
     for svm_type, each in best.items():
@@ -133,7 +149,8 @@ for training in training_files:
         print('accuracy: ', each['accuracy'])
         print('C": ', each['C'])
         print('gamma: ', each['gamma'])
+        print('avg_itr: ', each['avg_itr'])
         print('time avg: ', time_used[svm_type])
     # save all the reports back to a file
-    json.dump(best, open(project_name + '-best.txt', 'w'))
-    json.dump(time_used, open(project_name + '-time.txt', 'w'))
+    json.dump(best, open('results/' + project_name + '-best.txt', 'w'))
+    json.dump(time_used, open('results/' + project_name + '-time.txt', 'w'))

@@ -240,12 +240,15 @@ class SimBinarySVM:
         return self.tree
 
     def predict(self, sample):
+        iterations = 0
         def runner(current):
             # if it is the leaf of the tree, return its value
             if current.left == None and current.right == None:
                 return current.val[0]
 
             prediction = current.svm.predict(sample)
+            nonlocal iterations
+            iterations += 1
 
             if prediction[0] == 0:
                 # goes left
@@ -254,20 +257,22 @@ class SimBinarySVM:
                 # goes right
                 return runner(current.right)
 
-        return self.int_to_label[runner(self.tree.root)]
+        return self.int_to_label[runner(self.tree.root)], iterations
 
     def test(self, testing_classes):
         total = 0
         errors = 0
+        total_itr = 0
 
         for class_name, tests in testing_classes.items():
             for test in tests:
                 total += 1
-                prediction = self.predict(test)
-                if prediction[0] != class_name:
+                prediction, iterations = self.predict(test)
+                total_itr += iterations
+                if prediction != class_name:
                     errors += 1
 
-        return total, errors
+        return total, errors, total_itr
 
     def cross_validate(self, folds, training_classes):
         total = 0

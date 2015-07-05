@@ -244,31 +244,36 @@ class SimMultiSVM:
         return tree
 
     def predict(self, sample):
+        iterations = 0
         def runner(current):
             if current.children is None:
                 return current.val[0]
             # use confidence score
             confidence = [svm.decision_function(sample) for svm in current.svms]
+            nonlocal iterations
+            iterations += len(current.svms)
             # since the more the confidence is the more likely its gonna be '1' class
             # so we find the minimum to find the most likely to be '0' class
             min_pos, min_val = min(enumerate(confidence), key=lambda x: x[1])
             # recursively call down the tree
             return runner(current.children[min_pos])
 
-        return self.int_to_label[runner(self.tree.root)]
+        return self.int_to_label[runner(self.tree.root)], iterations
 
     def test(self, testing_classes):
         total = 0
         errors = 0
+        total_itr = 0
 
         for class_name, tests in testing_classes.items():
             for test in tests:
                 total += 1
-                prediction = self.predict(test)
-                if prediction[0] != class_name:
+                prediction, iterations = self.predict(test)
+                total_itr += iterations
+                if prediction != class_name:
                     errors += 1
 
-        return total, errors
+        return total, errors, total_itr
 
     def cross_validate(self, folds, training_classes):
         acc_total = 0
