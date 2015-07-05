@@ -1,0 +1,16 @@
+results:
+best of  SimMultiSVM  with  satimage
+accuracy:  0.9145
+C":  10.0
+gamma:  0.001
+time avg:  161.62838185185177
+best of  OAO  with  satimage
+accuracy:  0.9195
+C":  100.0
+gamma:  0.001
+time avg:  4.107255938271605
+best of  SimBinarySVM  with  satimage
+accuracy:  0.908
+C":  10.0
+gamma:  0.001
+time avg:  153.57914162962965

@@ -1,0 +1,11 @@
+results:
+best of  OAO  with  letter
+accuracy:  0.975
+best C:  10.0
+best gamma:  0.1
+time avg:  24.376457728395067
+best of  SimBinarySVM  with  letter
+accuracy:  0.9566
+best C:  100.0
+best gamma:  0.01
+time avg:  1192.5617784320987

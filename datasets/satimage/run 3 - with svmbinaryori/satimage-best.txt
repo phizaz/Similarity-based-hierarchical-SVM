@@ -1,0 +1,1 @@
+{"SimBinarySVM": {"accuracy": 0.908, "C": 10.0, "gamma": 0.001}, "OAO": {"accuracy": 0.919, "C": 100.0, "gamma": 0.001}, "SimMultiSVM": {"accuracy": 0.9145, "C": 10.0, "gamma": 0.001}, "SimMultiSVM_ORI": {"accuracy": 0.908, "C": 10.0, "gamma": 0.001}}
