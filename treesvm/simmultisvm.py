@@ -193,6 +193,7 @@ class SimMultiSVM:
 
         # now got the tree
         # train svm according to the mulitree
+        svm_cnt = 0
         def train(training_classes):
             def runner(current, universe):
                 if current.children == None:
@@ -228,6 +229,8 @@ class SimMultiSVM:
                     # using one against the rest method
                     current.svms[i] = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C) \
                         .fit(training, labels)
+                    nonlocal svm_cnt
+                    svm_cnt += 1
                     # the recursive part
                     runner(child, child_universes[i])
             # relabel all the classes to int based
@@ -241,7 +244,7 @@ class SimMultiSVM:
         self.tree = tree
         self.int_to_label = int_to_label
         self.label_to_int = label_to_int
-        return tree
+        return svm_cnt
 
     def predict(self, sample):
         iterations = 0

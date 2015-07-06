@@ -167,7 +167,6 @@ class SimBinarySVM:
         return tree
 
     def train(self, training_classes):
-
         (self.separability, self.label_to_int, self.int_to_label) = \
             (separability, label_to_int, int_to_label) = self._find_separability(training_classes)
 
@@ -181,6 +180,7 @@ class SimBinarySVM:
 
         # create SVMs according to this tree
         # train svm ..
+        svm_cnt = 0
         def train(training_classes):
             # svm must be recursively trained
             def runner(current, universe):
@@ -219,6 +219,8 @@ class SimBinarySVM:
                 label = numpy.array(label)
 
                 svm = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
+                nonlocal svm_cnt
+                svm_cnt += 1
                 # we will use the 'svm' attribute of each node (arbitrarily added)
                 current.svm = svm
 
@@ -237,7 +239,7 @@ class SimBinarySVM:
         train(training_classes)
         if self.verbose:
             print('train: %.4f' % (time.process_time() - start_time))
-        return self.tree
+        return svm_cnt
 
     def predict(self, sample):
         iterations = 0

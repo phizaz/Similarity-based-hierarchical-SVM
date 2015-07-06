@@ -14,6 +14,7 @@ class OAOSVM:
     def train(self, training_classes):
         training = []
         label = []
+        class_cnt = len(training_classes.keys())
 
         self.label_to_int = {}
         self.int_to_label = {}
@@ -27,6 +28,8 @@ class OAOSVM:
         training = numpy.array(training)
         label = numpy.array(label)
         self.svm = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(training, label)
+        svm_cnt = (class_cnt * (class_cnt-1)) / 2
+        return svm_cnt
 
     def predict(self, sample):
         prediction = self.svm.predict(sample)

@@ -13,6 +13,7 @@ class OAASVM:
 
     def train(self, training_classes):
         self.svms = {}
+        svm_cnt = 0
         for focus_name in training_classes:
             samples = None
             labels = None
@@ -36,6 +37,8 @@ class OAASVM:
                     else:
                         labels = numpy.append(labels, [1 for i in points])
             self.svms[focus_name] = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(samples, labels)
+            svm_cnt += 1
+        return svm_cnt
 
     def predict(self, sample):
         iterations = len(self.svms.keys())

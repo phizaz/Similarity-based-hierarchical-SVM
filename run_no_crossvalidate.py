@@ -19,8 +19,8 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    # ('pendigits', 'datasets/pendigits/pendigits.tra', 'datasets/pendigits/pendigits.tes', lambda row: (row[:-1], row[-1])),
     ('satimage', 'datasets/satimage/sat-train.csv', 'datasets/satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    ('pendigits', 'datasets/pendigits/pendigits.tra', 'datasets/pendigits/pendigits.tes', lambda row: (row[:-1], row[-1])),
     # ('letter', 'datasets/letter/letter-train.txt', 'datasets/letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
@@ -44,14 +44,14 @@ for training in training_files:
     testing_classes = Dataset.split(testing_set)
 
     best = {}
-    time_used = {}
+    avg = {}
 
     for each in (
-            ('OAA', OAASVM),
             ('OAO', OAOSVM),
+            ('OAA', OAASVM),
+            ('SimMultiSVM', SimMultiSVM),
             ('SimBinarySVM_ORI', SimBinarySVMORI),
             ('SimBinarySVM', SimBinarySVM),
-            ('SimMultiSVM', SimMultiSVM),
     ):
 
         svm_type = each[0]
@@ -64,7 +64,11 @@ for training in training_files:
             'accuracy': 0
         }
 
-        time_used[svm_type] = 0
+        avg[svm_type] = {
+            'training_time': 0,
+            'testing_time': 0,
+            'svm_cnt': 0,
+        }
 
         start_time = time.process_time()
 
@@ -82,31 +86,32 @@ for training in training_files:
         def instance(SVM, gamma, C):
             # force calling garbage collection (solves memory leaks)
             gc.collect()
-            start_time = time.process_time()
             print('started gamma: ', gamma, ' C: ', C)
+
+            start_time = time.process_time()
             svm = SVM(gamma=gamma, C=C)
+            svm_cnt = svm.train(training_classes)
+            training_time = time.process_time() - start_time
 
             # start_time = time.process_time()
-            svm.train(training_classes)
-            # print('gamma: ', gamma, ' C: ', C, ' training time: %f' % (time.process_time() - start_time))
-
-            # start_time = time.process_time()
+            start_time = time.process_time()
             result = svm.test(testing_classes)
+            testing_time = time.process_time() - start_time
+
             testing_cnt = 0
             for name, points in testing_classes.items():
                 testing_cnt += points.shape[0]
-            # print('gamma: ', gamma, ' C: ', C, ' testing time: %f' % (time.process_time() - start_time))
 
             total = result[0]
             errors = result[1]
             total_itr = result[2]
             avg_itr = total_itr / testing_cnt
             accuracy = (total - errors) / total
-            time_elapsed = time.process_time() - start_time
 
-            print('finished! gamma: ', gamma, ' C:', C, ' accuracy: ', accuracy, ' avg_itr: ', avg_itr)
-            print('time used: ', time_elapsed)
-            return accuracy, total, errors, time_elapsed, avg_itr
+            print('finished! gamma: ', gamma, ' C:', C, ' accuracy: ', accuracy, ' avg_itr: ', avg_itr,
+                  ' svm_cnt: ', svm_cnt,
+                  ' training_time: %.4f' % (training_time), ' testing_time: %.4f' % (testing_time))
+            return accuracy, total, errors, (training_time, testing_time), avg_itr, svm_cnt
 
         results = {}
         with concurrent.futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
@@ -117,18 +122,24 @@ for training in training_files:
             # gamma, C
             for job in concurrent.futures.as_completed(jobs):
                 gamma, C = jobs[job]
-                accuracy, total, errors, time_elapsed, avg_itr = job.result()
+                accuracy, total, errors, time_elapsed, avg_itr, svm_cnt\
+                    = job.result()
                 # store the result
                 results[gamma] = {}
-                results[gamma][C] = accuracy, total, errors, avg_itr
-                time_used[svm_type] += time_elapsed / instance_cnt
+                results[gamma][C] = accuracy, total, errors, time_elapsed, avg_itr, svm_cnt
+                avg[svm_type]['training_time'] += time_elapsed[0] / instance_cnt
+                avg[svm_type]['testing_time'] += time_elapsed[1] / instance_cnt
+                avg[svm_type]['svm_cnt'] += svm_cnt / instance_cnt
 
                 if accuracy > best[svm_type]['accuracy']:
                     tmp = best[svm_type]
                     tmp['accuracy'] = accuracy
                     tmp['C'] = C
                     tmp['gamma'] = gamma
+                    tmp['training_time'] = time_elapsed[0]
+                    tmp['testing_time'] = time_elapsed[1]
                     tmp['avg_itr'] = avg_itr
+                    tmp['svm_cnt'] = svm_cnt
 
         # show report after each svm type
         print('time elapsed: ', time.process_time() - start_time)
@@ -137,8 +148,10 @@ for training in training_files:
         print('accuracy: ', best[svm_type]['accuracy'])
         print('best C: ', best[svm_type]['C'])
         print('best gamma: ', best[svm_type]['gamma'])
+        print('best training_time: ', best[svm_type]['training_time'])
+        print('best testing_time: ', best[svm_type]['testing_time'])
         print('best avg_itr: ', best[svm_type]['avg_itr'])
-        print('time avg: ', time_used[svm_type])
+        print('best svm_cnt: ', best[svm_type]['svm_cnt'])
 
         # save results into a file
         json.dump(results, open('results/' + project_name + '-' + svm_type + '.txt', 'w'))
@@ -149,8 +162,13 @@ for training in training_files:
         print('accuracy: ', each['accuracy'])
         print('C": ', each['C'])
         print('gamma: ', each['gamma'])
+        print('best training_time: ', best[svm_type]['training_time'])
+        print('best testing_time: ', best[svm_type]['testing_time'])
         print('avg_itr: ', each['avg_itr'])
-        print('time avg: ', time_used[svm_type])
+        print('svm_cnt: ', each['svm_cnt'])
+        print('training_time avg: ', avg[svm_type]['training_time'])
+        print('testing_time avg: ', avg[svm_type]['testing_time'])
+        print('svm_cnt avg: ', avg[svm_type]['svm_cnt'])
     # save all the reports back to a file
     json.dump(best, open('results/' + project_name + '-best.txt', 'w'))
-    json.dump(time_used, open('results/' + project_name + '-time.txt', 'w'))
+    json.dump(avg, open('results/' + project_name + '-avg.txt', 'w'))

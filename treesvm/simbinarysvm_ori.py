@@ -86,6 +86,7 @@ class SimBinarySVMORI:
         self.int_to_label = int_to_label
         group_mgr = self._create_tree(training_classes, label_to_int)
 
+        svm_cnt = 0
         def runner(current):
             if current.children == None:
                 return
@@ -106,6 +107,8 @@ class SimBinarySVMORI:
                         labels += [idx for i in points]
 
             current.svm = sklearn.svm.SVC(kernel='rbf', gamma=self.gamma, C=self.C).fit(samples, labels)
+            nonlocal svm_cnt
+            svm_cnt += 1
             runner(current.children[0])
             runner(current.children[1])
 
@@ -113,7 +116,7 @@ class SimBinarySVMORI:
         root_group = next(iter(group_mgr.groups.values()))
         runner(root_group)
         self.group_mgr = group_mgr
-        return group_mgr
+        return svm_cnt
 
     def predict(self, sample):
         # current is the only member in group manager
