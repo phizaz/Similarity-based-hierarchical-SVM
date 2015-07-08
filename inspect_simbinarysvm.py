@@ -9,14 +9,14 @@ def timer(func):
     func()
     return time.process_time() - start_time
 
-
-training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-train-m.csv'
+# ('letter', 'datasets/letter/letter-train.txt', 'datasets/letter/letter-test.txt', lambda row: (row[1:], row[0]))
+training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/treesvm/datasets/letter/letter-train.txt'
 # training_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/generated/generated.csv'
-training_set = Dataset.load(training_file)
+training_set = Dataset.load(training_file, adapter=lambda row: (row[1:], row[0]))
 training_classes = Dataset.split(training_set)
 
-testing_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/simbinarysvm/satimage/sat-test.csv'
-testing_set = Dataset.load(testing_file)
+testing_file = '/Users/phizaz/Dropbox/waseda-internship/svm-implementations/treesvm/datasets/letter/letter-test.txt'
+testing_set = Dataset.load(testing_file, adapter=lambda row: (row[1:], row[0]))
 testing_classes = Dataset.split(testing_set)
 
 svm = SimBinarySVM(gamma=0.001, C=10, verbose=True)

@@ -29,39 +29,6 @@ class SimBinarySVM:
             return matrix[int(a[0])][int(b[0])]
         return rbf
 
-    # this uses normal caching techinque
-    # this shouldn't be used anymore
-    # def make_rbf_kernel(self, gamma):
-    #     cache = {}
-    #     # miss = 0
-    #     # hit = 0
-    #
-    #     def rbf(a, b):
-    #         stra = hash(a.tostring())
-    #         strb = hash(b.tostring())
-    #         if stra < strb:
-    #             label_a = stra
-    #             label_b = strb
-    #         else:
-    #             label_a = strb
-    #             label_b = stra
-    #         if label_a in cache:
-    #             cached_label_a = cache[label_a]
-    #             if label_b in cached_label_a:
-    #                 # nonlocal hit
-    #                 # hit += 1
-    #                 return cached_label_a[label_b]
-    #         else:
-    #             cached_label_a = cache[label_a] = {}
-    #         # nonlocal miss
-    #         # miss += 1
-    #         # if miss % 10000 == 0:
-    #         #     print('size of cache: ', sys.getsizeof(cache), ' miss: ', miss, ' hit: ', hit)
-    #         cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
-    #         return res
-    #
-    #     return rbf
-
     def _find_separability(self, training_classes):
         # create a matrix list and give them indexes
         vectors = []
@@ -281,9 +248,6 @@ class SimBinarySVM:
         for key, val in training_classes.items():
             total += val.size
 
-        random_list = [i % folds for i in range(total)]
-        # should  we shuffle it ?
-        # random.shuffle( ramdom_list )
         acc_total = 0
         acc_errors = 0
         for i in range(folds):

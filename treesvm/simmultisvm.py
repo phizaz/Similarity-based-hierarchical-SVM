@@ -32,31 +32,6 @@ class SimMultiSVM:
             return matrix[int(a[0])][int(b[0])]
         return rbf
 
-    # this uses normal caching techinque
-    # def make_rbf_kernel(self, gamma):
-    #     cache = {}
-    #
-    #     def rbf(a, b):
-    #         # this one is very fast!!
-    #         stra = hash(a.tostring())
-    #         strb = hash(b.tostring())
-    #         if stra < strb:
-    #             label_a = stra
-    #             label_b = strb
-    #         else:
-    #             label_a = strb
-    #             label_b = stra
-    #         if label_a in cache:
-    #             cached_label_a = cache[label_a]
-    #             if label_b in cached_label_a:
-    #                 return cached_label_a[label_b]
-    #         else:
-    #             cached_label_a = cache[label_a] = {}
-    #         cached_label_a[label_b] = res = numpy.exp(-gamma * numpy.linalg.norm(a - b) ** 2)
-    #         return res
-    #
-    #     return rbf
-
     def _find_separability(self, training_classes):
         # create a matrix list and give them indexes
         vectors = []

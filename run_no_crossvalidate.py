@@ -19,9 +19,9 @@ num_workers = 2
 print('workers: ', num_workers)
 
 training_files = [
-    ('satimage', 'datasets/satimage/sat-train.csv', 'datasets/satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
-    ('pendigits', 'datasets/pendigits/pendigits.tra', 'datasets/pendigits/pendigits.tes', lambda row: (row[:-1], row[-1])),
-    # ('letter', 'datasets/letter/letter-train.txt', 'datasets/letter/letter-test.txt', lambda row: (row[1:], row[0])),
+    # ('satimage', 'datasets/satimage/sat-train.csv', 'datasets/satimage/sat-test.csv', lambda row: (row[:-1], row[-1])),
+    # ('pendigits', 'datasets/pendigits/pendigits.tra', 'datasets/pendigits/pendigits.tes', lambda row: (row[:-1], row[-1])),
+    ('letter', 'datasets/letter/letter-train.txt', 'datasets/letter/letter-test.txt', lambda row: (row[1:], row[0])),
 ]
 
 for training in training_files:
@@ -50,7 +50,7 @@ for training in training_files:
             ('OAO', OAOSVM),
             ('OAA', OAASVM),
             ('SimMultiSVM', SimMultiSVM),
-            ('SimBinarySVM_ORI', SimBinarySVMORI),
+            # ('SimBinarySVM_ORI', SimBinarySVMORI),
             ('SimBinarySVM', SimBinarySVM),
     ):
 
@@ -75,10 +75,12 @@ for training in training_files:
         # normally it's 9 steps each
         # gammas = numpy.logspace(-6, 2, 9)
         gammas = numpy.logspace(-6, 0, 7)
+        # gammas = numpy.array([0.1])
         print('gammas: ', gammas)
         # it's 9 steps
         # Cs = numpy.logspace(-2, 6, 9)
         Cs = numpy.logspace(-2, 4, 7)
+        # Cs = numpy.array([10.0])
         print('Cs: ', Cs)
 
         instance_cnt = gammas.size * Cs.size
@@ -122,10 +124,11 @@ for training in training_files:
             # gamma, C
             for job in concurrent.futures.as_completed(jobs):
                 gamma, C = jobs[job]
-                accuracy, total, errors, time_elapsed, avg_itr, svm_cnt\
+                accuracy, total, errors, time_elapsed, avg_itr, svm_cnt \
                     = job.result()
                 # store the result
-                results[gamma] = {}
+                if gamma not in results:
+                    results[gamma] = {}
                 results[gamma][C] = accuracy, total, errors, time_elapsed, avg_itr, svm_cnt
                 avg[svm_type]['training_time'] += time_elapsed[0] / instance_cnt
                 avg[svm_type]['testing_time'] += time_elapsed[1] / instance_cnt
